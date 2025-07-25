@@ -1,0 +1,54 @@
+# ========================
+# Global
+# ========================
+.DS_Store
+*.log
+*.env
+.env.local
+.env.*.local
+.idea/
+*.iml
+.vscode/
+*.class
+*.jar
+*.war
+
+# ========================
+# Frontend - Next.js
+# ========================
+frontend-fileflow/.next/
+frontend-fileflow/node_modules/
+frontend-fileflow/out/
+frontend-fileflow/.env
+frontend-fileflow/.env.local
+frontend-fileflow/.env.*.local
+frontend-fileflow/package-lock.json
+frontend-fileflow/yarn.lock
+frontend-fileflow/pnpm-lock.yaml
+
+# ========================
+# Backend - Spring Boot
+# ========================
+backend-fileflow/target/
+backend-fileflow/.env
+backend-fileflow/.env.local
+backend-fileflow/.classpath
+backend-fileflow/.project
+backend-fileflow/.settings/
+backend-fileflow/.idea/
+backend-fileflow/build/
+backend-fileflow/out/
+backend-fileflow/.mvn/
+backend-fileflow/mvnw
+backend-fileflow/mvnw.cmd
+
+# ========================
+# OS / Editor stuff
+# ========================
+*.swp
+*.swo
+Thumbs.db
+ehthumbs.db
+
+backend-fileflow/src/main/resources/credentials/
+backend-fileflow/credentials/
