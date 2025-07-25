@@ -1,15 +1,15 @@
-package com.fileflow.email.service;
+package com.fileflow.service;
 
 
 
-import com.fileflow.auth.entity.User;
-import com.fileflow.auth.exception.CodeInvalidException;
-import com.fileflow.auth.exception.EmailAlreadyExistException;
-import com.fileflow.auth.repository.UserAuthRepository;
-import com.fileflow.auth.utils.ApiResponse;
-import com.fileflow.email.dto.SendCodeRequest;
-import com.fileflow.email.dto.VerfiyCodeRequest;
-import com.fileflow.email.utils.CodeData;
+import com.fileflow.entity.User;
+import com.fileflow.exception.CodeInvalidException;
+import com.fileflow.exception.EmailAlreadyExistException;
+import com.fileflow.repository.UserAuthRepository;
+import com.fileflow.utils.ApiResponse;
+import com.fileflow.dto.SendCodeRequest;
+import com.fileflow.dto.VerfiyCodeRequest;
+import com.fileflow.utils.CodeData;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.fileflow.email.utils.EmailTemplate.loadEmailTemplate;
+import static com.fileflow.utils.EmailTemplate.loadEmailTemplate;
 
 
 @Service

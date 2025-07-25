@@ -1,6 +1,6 @@
 package com.fileflow.controller;
 
-import com.fileflow.dto.ApiResponse;
+import com.fileflow.utils.ApiResponse;
 import com.fileflow.dto.FileMetadataDTO;
 import com.fileflow.security.CustomUserDetails;
 import com.fileflow.service.FileService;

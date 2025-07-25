@@ -1,4 +1,4 @@
-package com.fileflow.dto;
+package com.fileflow.utils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

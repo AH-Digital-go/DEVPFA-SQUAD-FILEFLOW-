@@ -1,17 +1,20 @@
 package com.fileflow.controller;
 
-import com.fileflow.dto.ApiResponse;
+import com.fileflow.utils.ApiResponse;
 import com.fileflow.dto.FileMetadataDTO;
 import com.fileflow.security.CustomUserDetails;
 import com.fileflow.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/favourites")
@@ -49,4 +52,6 @@ public class FavouritesController {
                 .body(ApiResponse.error(e.getMessage()));
         }
     }
+
+
 }

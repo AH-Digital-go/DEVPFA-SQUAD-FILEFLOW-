@@ -1,7 +1,7 @@
-package com.fileflow.email.service;
+package com.fileflow.service;
 
-import com.fileflow.auth.utils.ApiError;
-import com.fileflow.auth.utils.ApiResponse;
+import com.fileflow.utils.ApiError;
+import com.fileflow.utils.ApiResponse;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;

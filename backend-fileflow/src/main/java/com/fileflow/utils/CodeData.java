@@ -1,4 +1,4 @@
-package com.fileflow.email.utils;
+package com.fileflow.utils;
 
 import lombok.Data;
 

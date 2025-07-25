@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 
 import java.time.LocalDateTime;
 
@@ -57,4 +57,5 @@ public class FileShare {
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
 }

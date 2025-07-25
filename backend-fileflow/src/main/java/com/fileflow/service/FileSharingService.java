@@ -3,21 +3,25 @@ package com.fileflow.service;
 import com.fileflow.dto.FileShareDTO;
 import com.fileflow.entity.FileMetadata;
 import com.fileflow.entity.FileShare;
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.FileShareRepository;
 import com.fileflow.repository.UserRepository;
+import com.fileflow.security.JwtUtil;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -126,4 +130,5 @@ public class FileSharingService {
         dto.setShareUrl(baseUrl + "/api/sharing/shared/" + share.getShareToken());
         return dto;
     }
+
 }

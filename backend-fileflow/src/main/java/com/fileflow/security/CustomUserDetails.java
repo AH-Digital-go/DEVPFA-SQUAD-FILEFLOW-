@@ -1,7 +1,7 @@
 package com.fileflow.security;
 
 
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;

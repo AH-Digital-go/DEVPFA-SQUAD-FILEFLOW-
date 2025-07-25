@@ -1,7 +1,7 @@
 package com.fileflow.security;
 
 
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 import com.fileflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

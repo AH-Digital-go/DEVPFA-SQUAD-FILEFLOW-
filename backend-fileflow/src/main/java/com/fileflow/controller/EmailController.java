@@ -1,10 +1,10 @@
-package com.fileflow.email.controller;
+package com.fileflow.controller;
 
 
-import com.fileflow.email.dto.SendCodeRequest;
-import com.fileflow.email.dto.VerfiyCodeRequest;
-import com.fileflow.email.service.EmailService;
-import com.fileflow.email.service.EmailVerificationService;
+import com.fileflow.dto.SendCodeRequest;
+import com.fileflow.dto.VerfiyCodeRequest;
+import com.fileflow.service.EmailService;
+import com.fileflow.service.EmailVerificationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

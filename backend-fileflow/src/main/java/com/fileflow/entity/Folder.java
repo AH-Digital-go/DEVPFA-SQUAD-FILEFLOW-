@@ -3,7 +3,7 @@ package com.fileflow.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

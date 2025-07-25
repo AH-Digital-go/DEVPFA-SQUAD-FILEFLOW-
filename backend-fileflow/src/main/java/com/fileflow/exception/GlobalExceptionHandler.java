@@ -1,6 +1,6 @@
 package com.fileflow.exception;
 
-import com.fileflow.dto.ApiResponse;
+import com.fileflow.utils.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;

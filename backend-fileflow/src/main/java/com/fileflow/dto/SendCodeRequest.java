@@ -1,4 +1,4 @@
-package com.fileflow.email.dto;
+package com.fileflow.dto;
 
 
 import jakarta.validation.constraints.Email;

@@ -3,7 +3,7 @@ package com.fileflow.service;
 import com.fileflow.dto.FileMetadataDTO;
 import com.fileflow.dto.FolderDTO;
 import com.fileflow.entity.Folder;
-import com.fileflow.auth.entity.User;
+import com.fileflow.entity.User;
 import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
