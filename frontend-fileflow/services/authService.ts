@@ -115,6 +115,15 @@ export const authService = {
     }
   },
 
+  async sendVerificationCode(email: string): Promise<void> {
+    await authAPI.post('/send-code', { email });
+  },
+
+  async verifyCode(email: string, code: string): Promise<boolean> {
+    const response = await authAPI.post('/verify-code', { email, code });
+    return response.data.success; // true si code valide, false sinon
+  },
+
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await authAPI.post<ApiResponse<AuthData>>('/register', data);
     if (response.data.success) {
@@ -124,6 +133,17 @@ export const authService = {
     } else {
       throw new Error(response.data.message);
     }
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    await authAPI.post('/forget-password', { email });
+  },
+
+  async resetPassword(token: string, password: string, confirmPassword: string): Promise<void> {
+    console.log("token: ", token)
+    console.log("inside SERVICE newpassword: ", password);
+    console.log("inside SERVICE newpassword: ", confirmPassword);
+    await authAPI.post(`/reset-password?token=${token}`, { newPassword: password, confirmPassword: confirmPassword });
   },
 
   async logout(): Promise<void> {

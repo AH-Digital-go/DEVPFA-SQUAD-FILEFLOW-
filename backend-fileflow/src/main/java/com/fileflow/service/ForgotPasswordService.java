@@ -61,7 +61,7 @@ public class ForgotPasswordService {
 
         Map<String, String> vars = new HashMap<>();
         vars.put("[[USERNAME]]", user.getFirstName());
-        vars.put("[[CODE]]", token);
+        vars.put("[[RESET_LINK]]", resetUrl);
 
         String body = loadEmailTemplate("reset-password-email.html", vars);
 

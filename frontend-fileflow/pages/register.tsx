@@ -6,6 +6,9 @@ import { gsap } from 'gsap';
 import Link from 'next/link';
 import { Files, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { SendVerificationCodeInput } from './SendVerificationCodeInput';
+import { useVerificationCode } from '@/hooks/useVerificationCode';
+import { toast } from 'react-toastify';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -22,7 +25,16 @@ const RegisterPage = () => {
   const { register, isLoading } = useAuth();
   const formRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
-
+  
+  const {
+    codeSent,
+    isSendingCode,
+    isVerifying,
+    code,
+    setCode,
+    sendCode,
+    verifyCode,
+  } = useVerificationCode();
   useEffect(() => {
     // Logo animation
     if (logoRef.current) {
@@ -60,11 +72,17 @@ const RegisterPage = () => {
       newErrors.email = 'L\'email n\'est pas valide';
     }
 
+   // Password
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/;
+    
     if (!formData.password) {
       newErrors.password = 'Le mot de passe est requis';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
+    } else if (!passwordRegex.test(formData.password)) {
+      newErrors.password = 'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial';
     }
+
 
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'La confirmation du mot de passe est requise';
@@ -85,7 +103,15 @@ const RegisterPage = () => {
     e.preventDefault();
     
     if (!validateForm()) return;
-
+    // Si code envoyé, on vérifie d'abord le code
+    if (codeSent) {
+      const isCodeValid = await verifyCode(formData.email, code);
+      if (!isCodeValid) return; // erreur affichée par toast dans hook
+    } else {
+      // Si code pas encore envoyé, demande d’envoyer le code
+      toast.error('Veuillez d’abord envoyer et vérifier le code.');
+      return;
+    }
     try {
       await register({
         email: formData.email,
@@ -210,6 +236,14 @@ const RegisterPage = () => {
                   {errors.email}
                 </motion.p>
               )}
+              <SendVerificationCodeInput
+                email={formData.email}
+                codeSent={codeSent}
+                isSendingCode={isSendingCode}
+                code={code}
+                setCode={setCode}
+                onSendCode={() => sendCode(formData.email)}
+              />
             </div>
 
             {/* Password */}

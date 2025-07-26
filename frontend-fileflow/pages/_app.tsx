@@ -7,7 +7,7 @@ import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
 import '../styles/globals.css';
 
-const publicRoutes = ['/', '/login', '/register', '/404'];
+const publicRoutes = ['/', '/login', '/register', '/404', '/forget-password', '/reset-password'];
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();

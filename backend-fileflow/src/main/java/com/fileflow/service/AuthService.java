@@ -77,7 +77,7 @@ public class AuthService {
         data.put("user", userResponse);
         data.put("accessToken", token);
         verificationService.clearVerification(user.getEmail());
-        return ResponseEntity.ok(new ApiResponse<>(true, "Inscription réussie", userResponse));
+        return ResponseEntity.ok(new ApiResponse<>(true, "Inscription réussie", data));
     }
 
 
