@@ -26,8 +26,6 @@ public class ResetPasswordRequest {
 
     @AssertTrue(message = "Les mots de passe ne correspondent pas")
     public boolean isPasswordsMatching() {
-        System.out.println("mot de pass: "+newPassword);
-        System.out.println("confirm mot de pass: "+confirmPassword);
         if (newPassword == null || confirmPassword == null) return false;
         return newPassword.equals(confirmPassword);
     }
