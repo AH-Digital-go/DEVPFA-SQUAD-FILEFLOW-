@@ -4,10 +4,11 @@
 import { useState } from 'react';
 import { authService } from '@/services/authService';
 import { toast } from 'react-toastify';
+import { useRouter } from 'next/router';
 
 export const useForgotPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
-
+  const router = useRouter();
   const sendResetLink = async (email: string) => {
     setIsLoading(true);
     try {
@@ -22,11 +23,11 @@ export const useForgotPassword = () => {
 
   const resetPassword = async (token: string, password: string, confirmPassword: string) => {
     setIsLoading(true);
+    
     try {
-      console.log("inside hook newpassword: ", password);
-      console.log("inside hook newpassword: ", confirmPassword);
       await authService.resetPassword(token, password, confirmPassword);
       toast.success("Mot de passe réinitialisé avec succès.");
+      router.push('/login');
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Échec de la réinitialisation.");
     } finally {

@@ -14,11 +14,13 @@ interface AuthState {
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isRehydrated: boolean;
   login: (user: User, accessToken: string) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   updateUser: (user: Partial<User>) => void;
   setaccessToken: (accessToken: string) => void;
+  setRehydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -28,9 +30,10 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isAuthenticated: false,
       isLoading: false,
+      isRehydrated: false,
+
 
       login: (user, accessToken) => {
-        console.log("login appelé avec accessToken:", accessToken);
         set({
           user,
           accessToken,
@@ -64,6 +67,9 @@ export const useAuthStore = create<AuthState>()(
           });
         }
       },
+      setRehydrated: (value) => {
+        set({ isRehydrated: value });
+      },
     }),
     {
       name: 'fileflow-auth',
@@ -72,6 +78,9 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         accessToken: state.accessToken,
       }),
+      onRehydrateStorage: (store) => () => {
+        store.setRehydrated(true);
+      }
     }
   )
 );

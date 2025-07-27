@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fileService, FileShare, ShareFileRequest } from '../services/fileService';
+import { fileService} from '../services/fileService';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -10,6 +10,7 @@ import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Copy, Eye, EyeOff, Share2, Trash2, ExternalLink } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { FileShare, ShareFileRequest } from '@/types/types';
 
 interface FileShareModalProps {
   isOpen: boolean;

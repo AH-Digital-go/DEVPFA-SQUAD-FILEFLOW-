@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { fileService, FileStatistics } from '../services/fileService';
+import { fileService } from '../services/fileService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { BarChart3, FileText, Heart, Clock, HardDrive } from 'lucide-react';
+import { FileStatistics } from '@/types/types';
 
 const FileStatisticsComponent: React.FC = () => {
   const [statistics, setStatistics] = useState<FileStatistics | null>(null);

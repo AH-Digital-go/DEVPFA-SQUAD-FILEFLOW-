@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForgotPassword } from '@/hooks/useForgotPassword';
 import { Mail } from 'lucide-react';
+import router from 'next/router';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -48,6 +49,13 @@ const ForgotPasswordPage = () => {
         >
           {isLoading ? 'Envoi...' : 'Envoyer le lien de réinitialisation'}
         </button>
+        <button
+        type='button'
+        onClick={() => router.push('/login')} 
+        className="w-full mt-3 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium shadow-sm hover:bg-gray-200 transition-all duration-300"
+      >
+        Retour
+      </button>
       </form>
     </div>
   );

@@ -141,8 +141,6 @@ export const authService = {
 
   async resetPassword(token: string, password: string, confirmPassword: string): Promise<void> {
     console.log("token: ", token)
-    console.log("inside SERVICE newpassword: ", password);
-    console.log("inside SERVICE newpassword: ", confirmPassword);
     await authAPI.post(`/reset-password?token=${token}`, { newPassword: password, confirmPassword: confirmPassword });
   },
 

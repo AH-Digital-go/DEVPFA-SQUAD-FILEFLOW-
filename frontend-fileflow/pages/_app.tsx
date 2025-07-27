@@ -11,12 +11,12 @@ const publicRoutes = ['/', '/login', '/register', '/404', '/forget-password', '/
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, isRehydrated } = useAuthStore();
 
   useEffect(() => {
     const handleRouteChange = () => {
       const isPublicRoute = publicRoutes.includes(router.pathname);
-      
+      if (!isRehydrated) return;
       if (!isLoading) {
         if (!isAuthenticated && !isPublicRoute) {
           router.push('/login');
@@ -34,7 +34,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     };
   }, [router, isAuthenticated, isLoading]);
 
-  if (isLoading) {
+  if (!isRehydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="spinner" />
