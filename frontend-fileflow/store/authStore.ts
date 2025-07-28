@@ -15,12 +15,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isRehydrated: boolean;
+  isRedirecting: boolean;
   login: (user: User, accessToken: string) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   updateUser: (user: Partial<User>) => void;
   setaccessToken: (accessToken: string) => void;
   setRehydrated: (value: boolean) => void;
+  setRedirecting: (value: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       isRehydrated: false,
+      isRedirecting: false,
 
 
       login: (user, accessToken) => {
@@ -69,6 +72,10 @@ export const useAuthStore = create<AuthState>()(
       },
       setRehydrated: (value) => {
         set({ isRehydrated: value });
+      },
+
+      setRedirecting: (value) => {
+        set({ isRedirecting: value })
       },
     }),
     {

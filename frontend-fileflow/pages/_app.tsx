@@ -20,7 +20,7 @@ function MyApp({ Component, pageProps }: AppProps) {
       if (!isLoading) {
         if (!isAuthenticated && !isPublicRoute) {
           router.push('/login');
-        } else if (isAuthenticated && (router.pathname === '/' || router.pathname === '/login' || router.pathname === '/register')) {
+        } else if (isAuthenticated && !isRehydrated && (router.pathname === '/' || router.pathname === '/login' || router.pathname === '/register')) {
           router.push('/dashboard');
         }
       }
@@ -32,7 +32,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     return () => {
       router.events.off('routeChangeComplete', handleRouteChange);
     };
-  }, [router, isAuthenticated, isLoading]);
+  }, [router, isAuthenticated, isLoading, isRehydrated]);
 
   if (!isRehydrated || isLoading) {
     return (

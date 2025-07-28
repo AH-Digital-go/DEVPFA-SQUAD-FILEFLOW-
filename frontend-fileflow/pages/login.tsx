@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Files, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +16,7 @@ const LoginPage = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   
   const { login, isLoading } = useAuth();
+  const {isRedirecting, setRedirecting} = useAuthStore();
   const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
@@ -48,10 +50,15 @@ const LoginPage = () => {
       newErrors.email = 'L\'email n\'est pas valide';
     }
 
+   // Password
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/;
+    
     if (!password) {
       newErrors.password = 'Le mot de passe est requis';
-    } else if (password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    } else if (password.length < 8) {
+      newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
+    } else if (!passwordRegex.test(password)) {
+      newErrors.password = 'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial';
     }
 
     setErrors(newErrors);
@@ -64,11 +71,22 @@ const LoginPage = () => {
     if (!validateForm()) return;
 
     try {
+      setRedirecting(true);
+      console.log("isRedirecting: ", isRedirecting);
       await login(email, password);
     } catch (error) {
+      setRedirecting(false);
       console.error('Login failed:', error);
     }
   };
+  console.log("isRedirecting 2 : ", isRedirecting);
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
