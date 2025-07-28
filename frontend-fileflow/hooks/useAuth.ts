@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 
 export const useAuth = () => {
   const router = useRouter();
-  const { user, accessToken, isAuthenticated, isLoading, login, logout, setLoading } = useAuthStore();
+  const { user, accessToken, isAuthenticated, isLoading, login, logout, setLoading, setRedirecting } = useAuthStore();
 
   useEffect(() => {
     // Check token validity on mount
@@ -76,6 +76,7 @@ export const useAuth = () => {
   const handleLogout = async () => {
     try {
       if (accessToken) {
+        setRedirecting(false);
         await authService.logout();
       }
     } catch (error) {

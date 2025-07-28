@@ -39,6 +39,7 @@ const DashboardPage = () => {
   const { user } = useAuthStore();
   const { files, favorites, totalSize, setFiles } = useFileStore();
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuthStore();
 
   const loadFiles = useCallback(async () => {
     try {
@@ -63,7 +64,9 @@ const DashboardPage = () => {
   }, [setFiles]);
 
   useEffect(() => {
-    loadFiles();
+    if(isAuthenticated) {
+      loadFiles();
+    }
     
     // Animate dashboard on load
     if (dashboardRef.current) {
