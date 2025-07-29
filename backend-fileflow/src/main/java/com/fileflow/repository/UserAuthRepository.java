@@ -18,4 +18,7 @@ public interface UserAuthRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT COALESCE(SUM(f.fileSize), 0) FROM File f WHERE f.user.id = :userId")
     Long getTotalStorageUsedByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.folders LEFT JOIN FETCH u.files WHERE u.email = :email")
+    Optional<User> findByEmailWithFoldersAndFiles(@Param("email") String email);
 }

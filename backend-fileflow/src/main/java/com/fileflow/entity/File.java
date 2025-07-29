@@ -1,10 +1,8 @@
 package com.fileflow.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,7 +12,8 @@ import java.util.List;
 @Entity
 @Table(name = "file",
         uniqueConstraints = @UniqueConstraint(columnNames = {"id", "original_file_id"}))
-@Data
+@Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
@@ -64,15 +63,16 @@ public class File {
 
     @OneToMany(mappedBy="file",cascade = CascadeType.ALL)
     private List<FileShare> fileShares;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference("user-files")
     private User user;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id")
     private Folder folder;
-    
+
     public String getFileExtension() {
         if (originalFileName != null && originalFileName.contains(".")) {
             return originalFileName.substring(originalFileName.lastIndexOf("."));

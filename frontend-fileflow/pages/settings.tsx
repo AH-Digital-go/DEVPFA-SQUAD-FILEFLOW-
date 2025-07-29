@@ -16,6 +16,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { userService } from '@/services/userService';
+import { useAuthStore } from '@/store/authStore';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
@@ -42,7 +44,7 @@ const SettingsPage = () => {
       syncEnabled: true,
     },
   });
-
+  const {setRedirecting} = useAuthStore();
   const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,7 +85,10 @@ const SettingsPage = () => {
     if (confirmed) {
       try {
         // Here you would typically make an API call to delete the account
-        toast.success('Demande de suppression de compte envoyée');
+        const response = await userService.deleteAccountRequest();
+        setRedirecting(false);
+        useAuthStore.getState().logout();
+        toast.success(response.message);
       } catch (error) {
         toast.error('Erreur lors de la suppression du compte');
       }
