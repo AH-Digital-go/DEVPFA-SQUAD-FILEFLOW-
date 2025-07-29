@@ -1,6 +1,6 @@
 package com.fileflow.service;
 
-import com.fileflow.dto.FileMetadataDTO;
+import com.fileflow.dto.FileDTO;
 import com.fileflow.dto.FolderDTO;
 import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
@@ -226,7 +226,7 @@ public class FolderService {
             if (folder.getFiles() != null && !folder.getFiles().isEmpty()) {
                 dto.setFiles(folder.getFiles().stream()
                     .map(file -> {
-                        FileMetadataDTO fileDto = new FileMetadataDTO();
+                        FileDTO fileDto = new FileDTO();
                         fileDto.setId(file.getId());
                         fileDto.setFileName(file.getFileName());
                         fileDto.setFileSize(file.getFileSize());

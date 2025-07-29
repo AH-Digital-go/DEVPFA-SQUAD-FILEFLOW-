@@ -8,6 +8,7 @@ import {
   SharedFileInfo,
   FolderInfo,
   FolderUpdateRequest,
+  shareNotification,
 } from '@/types/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088/api';
@@ -30,7 +31,7 @@ const favoritesAPI = axios.create({
 });
 
 const sharingAPI = axios.create({
-  baseURL: `${API_BASE_URL}/sharing`,
+  baseURL: `${API_BASE_URL}/file`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -57,7 +58,7 @@ const addAuthInterceptor = (apiInstance: AxiosInstance): void => {
 };
 
 // === Apply to all instances ===
-[ fileAPI, favoritesAPI, sharingAPI, foldersAPI ].forEach(addAuthInterceptor);
+[fileAPI, favoritesAPI, sharingAPI, foldersAPI].forEach(addAuthInterceptor);
 
 // === FILE SERVICE ===
 export const fileService = {
@@ -117,7 +118,9 @@ export const fileService = {
   },
 
   async downloadFile(id: number, fileName: string): Promise<Blob> {
+    console.log("fileId:",id);
     const response = await fileAPI.get(`/${id}/download`, { responseType: 'blob' });
+    console.log(response);
     const url = window.URL.createObjectURL(response.data);
     const link = document.createElement('a');
     link.href = url;
@@ -125,16 +128,80 @@ export const fileService = {
     document.body.appendChild(link);
     link.click();
     link.remove();
+    
     return response.data;
   },
 
   // === SHARING ===
-  async shareFile(fileId: number, shareOptions: ShareFileRequest): Promise<FileShare> {
-    const response = await sharingAPI.post<ApiResponse<FileShare>>(
-      `/${fileId}/share`, shareOptions);
-    if (response.data.success) return response.data.data;
+  async shareFile(fileId: number,userEmail:string): Promise<void> {
+    const response = await sharingAPI.post(
+      `/share/${fileId}`,null,{
+        params:{
+          userEmail,
+        }
+      });
+    console.log(response);
+      if(response.status!=200)
     throw new Error(response.data.message);
   },
+
+  async getShareNotfications(userId:number):Promise<shareNotification[]>{
+    const response = await sharingAPI.get("/share/requests",{
+      params:{userId,},
+    });
+    console.log(response);
+    if(response.status==200)
+      return response.data;
+    throw new Error(response.data.message);
+  },
+
+  async shareResponse(shareFileId: number, shareresponse: boolean): Promise<unknown> {
+    const response = await sharingAPI.post(
+      `/share/response/${shareFileId}`, null,
+      {
+        params:{response:shareresponse,},
+      }
+    );
+    if (response.status==200) return response.data.data;
+    throw new Error(response.data.message);
+  },
+  async getFileUsersEmails(fileId: number): Promise<string[]> {
+    const response = await sharingAPI.get(
+      `/shared/${fileId}/with`
+    );
+    console.log(response);
+    return response.data;
+  },
+
+  async getSharedFilesWithMe(userId: number): Promise<FileMetadata[]> {
+    const response = await sharingAPI.get(
+      `/shared`, {
+      params: { userId }
+    }
+
+    );
+    console.log(response);
+    return response.data;
+  },
+  async getSharedFilesByMe(userId: number): Promise<FileMetadata[]> {
+    const response = await sharingAPI.get<FileMetadata[]>("/shared/by-me", {
+      params: { userId },
+    });
+    console.log(response);
+    return response.data;
+  },
+  async unshareFile(fileId: number, userEmail: string): Promise<void> {
+    
+    const response = await sharingAPI.delete(`/${fileId}/share`, {
+      params: { userEmail },
+    });
+    
+    if (response.status !== 200) {
+      throw new Error("Failed to unshare file.");
+    }
+  },
+////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
   async getFileShares(fileId: number): Promise<FileShare[]> {
     const response = await sharingAPI.get<ApiResponse<FileShare[]>>(`/${fileId}/shares`);

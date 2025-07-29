@@ -1,30 +1,45 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Heart, Files } from 'lucide-react';
+import { Heart, Files, Share2 } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { fileService, FileMetadata } from '../services/fileService';
 import FileCard from '../components/FileCard';
 import AnimatedLoader from '../components/AnimatedLoader';
+import { useAuthStore } from '@/store/authStore';
+
 
 const FavouritesPage = () => {
-  const { favorites, isLoading, setLoading, setFiles } = useFileStore();
+  const { favorites, isLoading, setLoading,files, setFiles } = useFileStore();
+  const { user } = useAuthStore();
   const router = useRouter();
-
+  const [ shareType, setShareType] = useState<"by" |"with">("by");
+  const shareTypes=[
+    {key:"by",label:"par moi"},
+    {key:"with",label:"avec moi"},
+  ];
   useEffect(() => {
-    loadFavorites();
-  }, []);
 
-  const loadFavorites = async () => {
+    loadSharedfiles(shareType);
+  }, [shareType]);
+
+  const loadSharedfiles = async (shareType:string) => {
     try {
       setLoading(true);
       // Utilisez getFavorites() au lieu de getFiles() pour récupérer uniquement les favoris
-      const favoritesData = await fileService.getFavorites();
+      var sharedFiles;
+      if(shareType=="by"){
+        sharedFiles = await fileService.getSharedFilesByMe(Number(user?.id));
+      }
+      else
+        {
+            sharedFiles = await fileService.getSharedFilesWithMe(Number(user?.id));
+      }
       
       // Mapper FileMetadata vers FileItem si nécessaire
-      const mappedFavorites = favoritesData.map((file: FileMetadata) => ({
+      const mappedsharedfiles = sharedFiles.map((file: FileMetadata) => ({
         id: file.id.toString(), // Convertir number en string si nécessaire
         name: file.originalFileName,
         originalName: file.originalFileName,
@@ -39,7 +54,7 @@ const FavouritesPage = () => {
         // Ajoutez d'autres propriétés si nécessaires selon votre interface FileItem
       }));
 
-      setFiles(mappedFavorites);
+      setFiles(mappedsharedfiles);
     } catch (error) {
       console.error('Failed to load favorites:', error);
     } finally {
@@ -66,26 +81,37 @@ const FavouritesPage = () => {
       >
         <div className="flex items-center gap-3 mb-4">
           <div className="p-3 bg-gray-200 rounded-xl shadow-lg">
-            <Heart className="w-6 h-6 text-gray-600" />
+            <Share2 className="w-6 h-6 text-gray-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Favoris</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Partagé</h1>
             <p className="text-gray-600">
-              {favorites.length} fichier{favorites.length !== 1 ? 's' : ''} favori{favorites.length !== 1 ? 's' : ''}
+              {files.length} fichier{files.length !== 1 ? 's' : ''} partagé{files.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
+        <select
+              value={shareType}
+              onChange={(e) => setShareType(e.target.value)}
+              className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+            >
+              {shareTypes.map((type) => (
+                <option key={type.key} value={type.key}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
       </motion.div>
 
       {/* Favorites Grid */}
-      {favorites.length > 0 ? (
+      {files.length > 0 ? (
         <motion.div 
           className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {favorites.map((file, index) => (
+          {files.map((file, index) => (
             <motion.div
               key={file.id}
               initial={{ opacity: 0, y: 20 }}
@@ -111,19 +137,10 @@ const FavouritesPage = () => {
               <Files className="w-10 h-10 text-gray-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-3">
-              Aucun fichier favori
+              Aucun fichier partagé
             </h3>
-            <p className="text-gray-500 mb-6">
-              Ajoutez des fichiers à vos favoris en cliquant sur l'icône cœur dans la liste de vos fichiers
-            </p>
-            <motion.button
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-800 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => router.push('/files')}
-            >
-              Parcourir les fichiers
-            </motion.button>
+            
+            
           </div>
         </motion.div>
       )}
