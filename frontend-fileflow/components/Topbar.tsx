@@ -15,6 +15,8 @@ import {
   List,
 } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
+import { NotificationsDropdown } from './NotificationsDropdown';
+import { useAuthStore } from '@/store/authStore';
 
 const Topbar = () => {
   const [searchFocused, setSearchFocused] = useState(false);
@@ -23,6 +25,7 @@ const Topbar = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const topbarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (topbarRef.current) {
@@ -48,7 +51,7 @@ const Topbar = () => {
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    
+
     if (newMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -72,13 +75,11 @@ const Topbar = () => {
         <div className="flex items-center flex-1 max-w-2xl">
           <div
             ref={searchRef}
-            className={`relative flex items-center w-full transition-all duration-300 ${
-              searchFocused ? 'shadow-lg' : 'shadow-sm'
-            }`}
+            className={`relative flex items-center w-full transition-all duration-300 ${searchFocused ? 'shadow-lg' : 'shadow-sm'
+              }`}
           >
-            <Search className={`absolute left-4 w-5 h-5 transition-colors duration-300 ${
-              searchFocused ? 'text-blue-500' : 'text-slate-400'
-            }`} />
+            <Search className={`absolute left-4 w-5 h-5 transition-colors duration-300 ${searchFocused ? 'text-blue-500' : 'text-slate-400'
+              }`} />
             <input
               type="text"
               value={searchQuery}
@@ -119,11 +120,10 @@ const Topbar = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'grid' 
-                  ? 'bg-blue-100 text-blue-600' 
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
+                  ? 'bg-blue-100 text-blue-600'
                   : 'text-gray-500 hover:bg-gray-100'
-              }`}
+                }`}
               aria-label="Vue grille"
               title="Vue grille"
             >
@@ -131,11 +131,10 @@ const Topbar = () => {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-blue-100 text-blue-600' 
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
+                  ? 'bg-blue-100 text-blue-600'
                   : 'text-gray-500 hover:bg-gray-100'
-              }`}
+                }`}
               aria-label="Vue liste"
               title="Vue liste"
             >
@@ -158,14 +157,15 @@ const Topbar = () => {
           </motion.button>
 
           {/* Notifications */}
-          <motion.button
+          {/* <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="relative p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors duration-300"
           >
             <Bell className="w-5 h-5 text-slate-600" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-          </motion.button>
+          </motion.button> */}
+          <NotificationsDropdown userId={Number(user?.id)}/>
 
           {/* Settings */}
           <motion.button

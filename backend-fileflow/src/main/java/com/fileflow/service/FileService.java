@@ -1,9 +1,10 @@
 package com.fileflow.service;
 
 import com.fileflow.config.FileStorageConfig;
-import com.fileflow.dto.FileMetadataDTO;
-import com.fileflow.entity.FileMetadata;
+import com.fileflow.dto.FileDTO;
+import com.fileflow.entity.File;
 import com.fileflow.entity.User;
+import com.fileflow.exception.ForbiddenException;
 import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class FileService {
     @Value("${file.max-size}")
     private Long maxFileSize;
 
-    public FileMetadataDTO uploadFile(MultipartFile file, Long userId) {
+    public FileDTO uploadFile(MultipartFile file, Long userId) {
         // Validate file
         if (file.isEmpty()) {
             throw new RuntimeException("File is empty");
@@ -78,7 +79,7 @@ public class FileService {
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             // Save metadata to database
-            FileMetadata fileMetadata = new FileMetadata();
+            File fileMetadata = new File();
             fileMetadata.setFileName(fileName);
             fileMetadata.setOriginalFileName(originalFileName);
             fileMetadata.setFilePath(filePath.toString());
@@ -87,7 +88,7 @@ public class FileService {
             fileMetadata.setFileUuid(fileUuid);
             fileMetadata.setUser(user);
 
-            FileMetadata savedFile = fileRepository.save(fileMetadata);
+            File savedFile = fileRepository.save(fileMetadata);
 
             // Update user storage
             user.setStorageUsed(currentStorageUsed + file.getSize());
@@ -100,33 +101,33 @@ public class FileService {
         }
     }
 
-    public List<FileMetadataDTO> getUserFiles(Long userId) {
-        List<FileMetadata> files = fileRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public List<FileDTO> getUserFiles(Long userId) {
+        List<File> files = fileRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return files.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
     // to a wil
-    public List<FileMetadataDTO> getFilesByOriginalFileName(Long userId, String name) {
-        List<FileMetadata> files = fileRepository.findByUserIdAndOriginalFileNameContainingIgnoreCase(userId, name);
+    public List<FileDTO> getFilesByOriginalFileName(Long userId, String name) {
+        List<File> files = fileRepository.findByUserIdAndOriginalFileNameContainingIgnoreCase(userId, name);
         return files.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
-    public Page<FileMetadataDTO> getUserFiles(Long userId, Pageable pageable) {
-        Page<FileMetadata> files = fileRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+    public Page<FileDTO> getUserFiles(Long userId, Pageable pageable) {
+        Page<File> files = fileRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return files.map(this::convertToDTO);
     }
 
-    public FileMetadataDTO getFileDetails(Long fileId, Long userId) {
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+    public FileDTO getFileDetails(Long fileId, Long userId) {
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
         return convertToDTO(file);
     }
 
     public Resource downloadFile(Long fileId, Long userId) {
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
 
         try {
@@ -143,22 +144,34 @@ public class FileService {
         }
     }
 
-    public FileMetadataDTO renameFile(Long fileId, Long userId, String newName) {
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+    public FileDTO renameFile(Long fileId, Long userId, String newName) throws ForbiddenException {
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
-
+        if(file.isShared()){
+            throw new ForbiddenException("you are not allowed to edit the file");
+        }
         // Check if new name already exists for this user
         if (fileRepository.existsByFileNameAndUserId(newName, userId)) {
             throw new RuntimeException("File with this name already exists");
         }
+        renameFileAndCopies(file,newName);
 
-        file.setOriginalFileName(newName);
-        FileMetadata savedFile = fileRepository.save(file);
+        File savedFile = fileRepository.save(file);
         return convertToDTO(savedFile);
     }
 
+    private void renameFileAndCopies(File file, String newName) {
+        file.setOriginalFileName(newName);
+
+        if (file.getFileCopies() != null) {
+            for (File copy : file.getFileCopies()) {
+                renameFileAndCopies(copy, newName);
+            }
+        }
+    }
+
     public void deleteFile(Long fileId, Long userId) {
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
 
         try {
@@ -179,31 +192,31 @@ public class FileService {
         }
     }
 
-    public List<FileMetadataDTO> getFavoriteFiles(Long userId) {
-        List<FileMetadata> files = fileRepository.findByUserIdAndIsFavoriteTrueOrderByCreatedAtDesc(userId);
+    public List<FileDTO> getFavoriteFiles(Long userId) {
+        List<File> files = fileRepository.findByUserIdAndIsFavoriteTrueOrderByCreatedAtDesc(userId);
         return files.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
-    public FileMetadataDTO toggleFavorite(Long fileId, Long userId) {
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+    public FileDTO toggleFavorite(Long fileId, Long userId) {
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
 
         file.setIsFavorite(!file.getIsFavorite());
-        FileMetadata savedFile = fileRepository.save(file);
+        File savedFile = fileRepository.save(file);
         return convertToDTO(savedFile);
     }
 
-    public List<FileMetadataDTO> searchFiles(Long userId, String searchTerm) {
-        List<FileMetadata> files = fileRepository.searchFilesByUserIdAndName(userId, searchTerm);
+    public List<FileDTO> searchFiles(Long userId, String searchTerm) {
+        List<File> files = fileRepository.searchFilesByUserIdAndName(userId, searchTerm);
         return files.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
-    private FileMetadataDTO convertToDTO(FileMetadata file) {
-        FileMetadataDTO dto = new FileMetadataDTO();
+    public FileDTO convertToDTO(File file) {
+        FileDTO dto = new FileDTO();
         dto.setId(file.getId());
         dto.setFileName(file.getFileName());
         dto.setOriginalFileName(file.getOriginalFileName());
@@ -219,13 +232,13 @@ public class FileService {
     }
 
     public Map<String, Object> getFileStatistics(Long userId) {
-        List<FileMetadata> userFiles = fileRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<File> userFiles = fileRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
         Map<String, Object> statistics = new HashMap<>();
 
         // Statistiques générales
         statistics.put("totalFiles", userFiles.size());
-        statistics.put("totalSize", userFiles.stream().mapToLong(FileMetadata::getFileSize).sum());
+        statistics.put("totalSize", userFiles.stream().mapToLong(File::getFileSize).sum());
         statistics.put("favoriteFiles", userFiles.stream().mapToLong(f -> f.getIsFavorite() ? 1 : 0).sum());
 
         // Statistiques par type de fichier

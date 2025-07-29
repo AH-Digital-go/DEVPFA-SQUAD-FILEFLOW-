@@ -2,19 +2,23 @@ package com.fileflow.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Table(name = "file_metadata")
+@Table(name = "file",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"id", "original_file_id"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class FileMetadata {
+@Builder(toBuilder = true)
+public class File {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,6 +35,8 @@ public class FileMetadata {
     
     @Column(nullable = false)
     private String contentType;
+
+    private boolean isShared;
     
     @Column(nullable = false)
     private Long fileSize;
@@ -48,6 +54,16 @@ public class FileMetadata {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "original_file_id")
+    private File originalFile;
+
+    @OneToMany(mappedBy = "originalFile",cascade = CascadeType.ALL)
+    private List<File> FileCopies;
+
+    @OneToMany(mappedBy="file",cascade = CascadeType.ALL)
+    private List<FileShare> fileShares;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
