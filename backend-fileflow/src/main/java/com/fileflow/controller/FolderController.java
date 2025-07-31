@@ -171,7 +171,7 @@ public class FolderController {
     }
 
     @PutMapping("/{id}/move")
-    @Operation(summary = "Move folder to new parent")
+    @Operation(summary = "Move folder to a new parent")
     public ResponseEntity<ApiResponse<FolderDTO>> moveFolder(
             @PathVariable Long id,
             @RequestBody Map<String, Object> request,
@@ -191,7 +191,7 @@ public class FolderController {
     }
 
     @PostMapping("/{id}/copy")
-    @Operation(summary = "Copy/Duplicate folder")
+    @Operation(summary = "Copy/Duplicate folder with all contents")
     public ResponseEntity<ApiResponse<FolderDTO>> copyFolder(
             @PathVariable Long id,
             @RequestBody Map<String, Object> request,

@@ -40,4 +40,6 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long> {
     // .... to a wil
     @Query("SELECT f FROM FileMetadata f WHERE f.user.id = :userId AND LOWER(f.originalFileName) LIKE LOWER(CONCAT('%', :name, '%'))")
     List<FileMetadata> findByUserIdAndOriginalFileNameContainingIgnoreCase(@Param("userId") Long userId, @Param("name") String name);
+    
+    List<FileMetadata> findByFolderIdAndUserId(Long folderId, Long userId);
 }

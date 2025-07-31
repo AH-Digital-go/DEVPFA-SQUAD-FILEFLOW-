@@ -34,10 +34,11 @@ public class FileController {
     @Operation(summary = "Upload a file")
     public ResponseEntity<ApiResponse<FileMetadataDTO>> uploadFile(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "folderId", required = false) Long folderId,
             Authentication authentication) {
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            FileMetadataDTO uploadedFile = fileService.uploadFile(file, userDetails.getId());
+            FileMetadataDTO uploadedFile = fileService.uploadFile(file, userDetails.getId(), folderId);
             return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", uploadedFile));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -159,6 +160,21 @@ public class FileController {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             Map<String, Object> statistics = fileService.getFileStatistics(userDetails.getId());
             return ResponseEntity.ok(ApiResponse.success("File statistics retrieved successfully", statistics));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/folder/{folderId}")
+    @Operation(summary = "Get files in a specific folder")
+    public ResponseEntity<ApiResponse<List<FileMetadataDTO>>> getFilesByFolder(
+            @PathVariable Long folderId,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            List<FileMetadataDTO> files = fileService.getFilesByFolder(folderId, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Files retrieved successfully", files));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error(e.getMessage()));

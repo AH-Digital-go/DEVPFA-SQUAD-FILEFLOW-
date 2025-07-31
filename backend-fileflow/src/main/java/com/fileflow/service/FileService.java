@@ -3,8 +3,10 @@ package com.fileflow.service;
 import com.fileflow.config.FileStorageConfig;
 import com.fileflow.dto.FileMetadataDTO;
 import com.fileflow.entity.FileMetadata;
+import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
 import com.fileflow.repository.FileRepository;
+import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,12 +32,13 @@ public class FileService {
 
     private final FileRepository fileRepository;
     private final UserRepository userRepository;
+    private final FolderRepository folderRepository;
     private final FileStorageConfig fileStorageConfig;
 
     @Value("${file.max-size}")
     private Long maxFileSize;
 
-    public FileMetadataDTO uploadFile(MultipartFile file, Long userId) {
+    public FileMetadataDTO uploadFile(MultipartFile file, Long userId, Long folderId) {
         // Validate file
         if (file.isEmpty()) {
             throw new RuntimeException("File is empty");
@@ -87,6 +90,13 @@ public class FileService {
             fileMetadata.setFileUuid(fileUuid);
             fileMetadata.setUser(user);
 
+            // Assign to folder if specified
+            if (folderId != null) {
+                Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
+                    .orElseThrow(() -> new RuntimeException("Folder not found"));
+                fileMetadata.setFolder(folder);
+            }
+
             FileMetadata savedFile = fileRepository.save(fileMetadata);
 
             // Update user storage
@@ -98,6 +108,11 @@ public class FileService {
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file", e);
         }
+    }
+
+    // Backward compatibility method for existing upload functionality
+    public FileMetadataDTO uploadFile(MultipartFile file, Long userId) {
+        return uploadFile(file, userId, null);
     }
 
     public List<FileMetadataDTO> getUserFiles(Long userId) {
@@ -273,5 +288,12 @@ public class FileService {
         statistics.put("largestFiles", largestFiles);
 
         return statistics;
+    }
+
+    public List<FileMetadataDTO> getFilesByFolder(Long folderId, Long userId) {
+        List<FileMetadata> files = fileRepository.findByFolderIdAndUserId(folderId, userId);
+        return files.stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
     }
 }
