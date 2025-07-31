@@ -208,4 +208,18 @@ export const fileService = {
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
+
+  async moveFolder(folderId: number, newParentId?: number): Promise<FolderInfo> {
+    const body = { newParentId };
+    const response = await foldersAPI.put<ApiResponse<FolderInfo>>(`/${folderId}/move`, body);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async copyFolder(folderId: number, newParentId?: number, newName?: string): Promise<FolderInfo> {
+    const body = { newParentId, newName };
+    const response = await foldersAPI.post<ApiResponse<FolderInfo>>(`/${folderId}/copy`, body);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
 };

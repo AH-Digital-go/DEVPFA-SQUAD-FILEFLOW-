@@ -163,6 +163,131 @@ public class FolderService {
             .collect(Collectors.toList());
     }
 
+    /**
+     * Move a folder to a new parent folder
+     */
+    public FolderDTO moveFolder(Long folderId, Long newParentId, Long userId) {
+        Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
+            .orElseThrow(() -> new RuntimeException("Folder not found"));
+
+        // Prevent moving a folder into itself or its descendants
+        if (newParentId != null && isDescendant(folder, newParentId)) {
+            throw new RuntimeException("Cannot move folder into itself or its descendants");
+        }
+
+        // Check if a folder with the same name already exists in the new location
+        if (newParentId != null) {
+            if (folderRepository.findByUserIdAndNameAndParentId(userId, folder.getName(), newParentId).isPresent()) {
+                throw new RuntimeException("A folder with this name already exists in the destination");
+            }
+            
+            Folder newParent = folderRepository.findByIdAndUserId(newParentId, userId)
+                .orElseThrow(() -> new RuntimeException("Destination folder not found"));
+            folder.setParent(newParent);
+        } else {
+            // Moving to root
+            if (folderRepository.findByUserIdAndNameAndParentIsNull(userId, folder.getName()).isPresent()) {
+                throw new RuntimeException("A folder with this name already exists in the root directory");
+            }
+            folder.setParent(null);
+        }
+
+        // Update paths for this folder and all its descendants
+        updateFolderPath(folder);
+        
+        folder = folderRepository.save(folder);
+        log.info("Moved folder '{}' (ID: {}) to new parent (ID: {})", folder.getName(), folderId, newParentId);
+        
+        return convertToDTO(folder, true);
+    }
+
+    /**
+     * Copy/Duplicate a folder with all its contents
+     */
+    public FolderDTO copyFolder(Long folderId, Long newParentId, String newName, Long userId) {
+        Folder originalFolder = folderRepository.findByIdAndUserId(folderId, userId)
+            .orElseThrow(() -> new RuntimeException("Folder not found"));
+
+        // Use original name if no new name provided
+        String finalName = (newName != null && !newName.trim().isEmpty()) ? newName.trim() : originalFolder.getName();
+        
+        // Check if a folder with the target name already exists in the destination
+        if (newParentId != null) {
+            if (folderRepository.findByUserIdAndNameAndParentId(userId, finalName, newParentId).isPresent()) {
+                throw new RuntimeException("A folder with this name already exists in the destination");
+            }
+        } else {
+            if (folderRepository.findByUserIdAndNameAndParentIsNull(userId, finalName).isPresent()) {
+                throw new RuntimeException("A folder with this name already exists in the root directory");
+            }
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Create the copy
+        Folder copiedFolder = copyFolderRecursively(originalFolder, newParentId, finalName, user);
+        copiedFolder = folderRepository.save(copiedFolder);
+        
+        log.info("Copied folder '{}' (ID: {}) to '{}' (ID: {})", 
+                originalFolder.getName(), folderId, copiedFolder.getName(), copiedFolder.getId());
+        
+        return convertToDTO(copiedFolder, true);
+    }
+
+    /**
+     * Check if a folder is a descendant of another folder
+     */
+    private boolean isDescendant(Folder folder, Long potentialAncestorId) {
+        if (folder.getId().equals(potentialAncestorId)) {
+            return true;
+        }
+        
+        for (Folder child : folder.getSubfolders()) {
+            if (isDescendant(child, potentialAncestorId)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Recursively copy a folder and all its contents
+     */
+    private Folder copyFolderRecursively(Folder original, Long newParentId, String newName, User user) {
+        Folder copy = new Folder();
+        copy.setName(newName);
+        copy.setUser(user);
+        copy.setColor(original.getColor());
+        copy.setDescription(original.getDescription() != null ? 
+            original.getDescription() + " (Copy)" : "Copy of " + original.getName());
+        copy.setIsFavorite(false); // Copies are not favorites by default
+
+        // Set parent relationship
+        if (newParentId != null) {
+            Folder newParent = folderRepository.findByIdAndUserId(newParentId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Destination folder not found"));
+            copy.setParent(newParent);
+            copy.setPath(newParent.getPath() + "/" + newName);
+        } else {
+            copy.setPath("/" + newName);
+        }
+
+        // Save the folder first to get an ID
+        copy = folderRepository.save(copy);
+
+        // Copy subfolders recursively
+        for (Folder subfolder : original.getSubfolders()) {
+            copyFolderRecursively(subfolder, copy.getId(), subfolder.getName(), user);
+        }
+
+        // Note: File copying would be handled by FileService
+        // For now, we're only copying the folder structure
+        
+        return copy;
+    }
+
     private void updateFolderPath(Folder folder) {
         String newPath = folder.getParent() != null 
             ? folder.getParent().getPath() + "/" + folder.getName()

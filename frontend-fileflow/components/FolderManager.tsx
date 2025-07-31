@@ -18,7 +18,9 @@ import {
   Home,
   Search,
   FileText,
-  HardDrive
+  HardDrive,
+  Move,
+  Copy
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -203,6 +205,39 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     }
   };
 
+  const moveFolder = async (folder: FolderInfo, newParentId?: number) => {
+    try {
+      await fileService.moveFolder(folder.id, newParentId);
+      
+      // Refresh data
+      loadFolders();
+      if (currentFolderId) {
+        loadFolderDetails(currentFolderId);
+      }
+      
+      const destination = newParentId ? 'nouveau dossier' : 'racine';
+      toast.success(`Le dossier "${folder.name}" a été déplacé vers ${destination}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors du déplacement");
+    }
+  };
+
+  const copyFolder = async (folder: FolderInfo, newParentId?: number, newName?: string) => {
+    try {
+      const copiedFolder = await fileService.copyFolder(folder.id, newParentId, newName);
+      
+      // Refresh data
+      loadFolders();
+      if (currentFolderId) {
+        loadFolderDetails(currentFolderId);
+      }
+      
+      toast.success(`Le dossier "${folder.name}" a été copié vers "${copiedFolder.name}"`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors de la copie");
+    }
+  };
+
   const openEditModal = (folder: FolderInfo) => {
     setEditingFolder(folder);
     setEditFolderName(folder.name);
@@ -303,6 +338,25 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               }}>
                 <Heart className="h-4 w-4 mr-2" />
                 {folder.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                // For demo, move to root - in real app, show folder selector
+                moveFolder(folder, undefined);
+              }}>
+                <Move className="h-4 w-4 mr-2" />
+                Déplacer vers racine
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                // For demo, copy to same location with new name - in real app, show copy dialog
+                const newName = prompt('Nouveau nom pour la copie:', `${folder.name} (Copie)`);
+                if (newName) {
+                  copyFolder(folder, folder.parentId, newName);
+                }
+              }}>
+                <Copy className="h-4 w-4 mr-2" />
+                Dupliquer
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={(e) => {

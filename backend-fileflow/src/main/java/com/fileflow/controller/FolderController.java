@@ -169,4 +169,45 @@ public class FolderController {
                 .body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/move")
+    @Operation(summary = "Move folder to new parent")
+    public ResponseEntity<ApiResponse<FolderDTO>> moveFolder(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            Long newParentId = request.get("newParentId") != null ? 
+                Long.valueOf(request.get("newParentId").toString()) : null;
+            
+            FolderDTO folder = folderService.moveFolder(id, newParentId, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Folder moved successfully", folder));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/copy")
+    @Operation(summary = "Copy/Duplicate folder")
+    public ResponseEntity<ApiResponse<FolderDTO>> copyFolder(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            Long newParentId = request.get("newParentId") != null ? 
+                Long.valueOf(request.get("newParentId").toString()) : null;
+            String newName = (String) request.get("newName");
+            
+            FolderDTO folder = folderService.copyFolder(id, newParentId, newName, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Folder copied successfully", folder));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
 }
