@@ -73,11 +73,14 @@ export const fileService = {
     throw new Error(response.data.message);
   },
 
-  async uploadFile(file: File, onProgress?: (progress: number) => void): Promise<FileMetadata> {
+  async uploadFile(file: File, onProgress?: (progress: number) => void, folderId?: number): Promise<FileMetadata> {
     if (!file || file.size === 0) throw new Error('Fichier invalide');
 
     const formData = new FormData();
     formData.append('file', file);
+    if (folderId) {
+      formData.append('folderId', folderId.toString());
+    }
 
     const response = await fileAPI.post<ApiResponse<FileMetadata>>('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -219,6 +222,18 @@ export const fileService = {
   async copyFolder(folderId: number, newParentId?: number, newName?: string): Promise<FolderInfo> {
     const body = { newParentId, newName };
     const response = await foldersAPI.post<ApiResponse<FolderInfo>>(`/${folderId}/copy`, body);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async getSubfolders(parentId: number): Promise<FolderInfo[]> {
+    const response = await foldersAPI.get<ApiResponse<FolderInfo[]>>(`/${parentId}/subfolders`);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async getFolderFiles(folderId: number): Promise<FileMetadata[]> {
+    const response = await fileAPI.get<ApiResponse<FileMetadata[]>>(`/folder/${folderId}`);
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },

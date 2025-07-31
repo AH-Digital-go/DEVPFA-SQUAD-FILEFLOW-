@@ -42,6 +42,17 @@ backend-fileflow/.mvn/
 backend-fileflow/mvnw
 backend-fileflow/mvnw.cmd
 
+# local uploaded files
+backend-fileflow/uploads
+
+FOLDER_MANAGEMENT_README.md
+FOLDER_MANAGEMENT_SPRINT_PLAN.md
+
+SPRINT_COMPTE_RENDU_23-31_JUILLET.tex
+
+
+
+
 # ========================
 # OS / Editor stuff
 # ========================

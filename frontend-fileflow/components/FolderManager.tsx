@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fileService, FolderInfo } from '../services/fileService';
+import { fileService } from '../services/fileService';
+import { FolderInfo } from '@/types/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -20,7 +21,9 @@ import {
   FileText,
   HardDrive,
   Move,
-  Copy
+  Copy,
+  Upload,
+  File
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -38,11 +41,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FolderInfo[]>([]);
+  const [navigationStack, setNavigationStack] = useState<FolderInfo[]>([]);
+  const [currentViewFolderId, setCurrentViewFolderId] = useState<number | null>(currentFolderId || null);
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<FolderInfo | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Form states
   const [newFolderName, setNewFolderName] = useState('');
@@ -57,8 +65,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   }, []);
 
   useEffect(() => {
-    if (currentFolderId) {
-      loadFolderDetails(currentFolderId);
+    if (currentViewFolderId) {
+      loadFolderDetails(currentViewFolderId);
+    } else {
+      setCurrentFolder(null);
+    }
+  }, [currentViewFolderId]);
+
+  useEffect(() => {
+    if (currentFolderId !== currentViewFolderId) {
+      setCurrentViewFolderId(currentFolderId || null);
     }
   }, [currentFolderId]);
 
@@ -108,19 +124,19 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         name: newFolderName.trim(),
         description: newFolderDescription.trim() || undefined,
         color: newFolderColor,
-        parentId: currentFolderId
+        parentId: currentViewFolderId
       };
       
       const newFolder = await fileService.createFolder(
         folderData.name, 
-        folderData.parentId,
+        folderData.parentId || undefined,
         folderData.description,
         folderData.color
       );
       
-      if (currentFolderId) {
+      if (currentViewFolderId) {
         // Refresh current folder details
-        loadFolderDetails(currentFolderId);
+        loadFolderDetails(currentViewFolderId);
       } else {
         // Refresh root folders
         loadFolders();
@@ -156,8 +172,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       
       // Refresh data
       loadFolders();
-      if (currentFolderId) {
-        loadFolderDetails(currentFolderId);
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
       }
       
       setShowEditModal(false);
@@ -175,8 +191,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       
       // Refresh data
       loadFolders();
-      if (currentFolderId) {
-        loadFolderDetails(currentFolderId);
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
       }
       
       toast.success(`Le dossier "${folder.name}" a été ${folder.isFavorite ? 'retiré des' : 'ajouté aux'} favoris`);
@@ -195,8 +211,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       
       // Refresh data
       loadFolders();
-      if (currentFolderId) {
-        loadFolderDetails(currentFolderId);
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
       }
       
       toast.success(`Le dossier "${folder.name}" a été supprimé`);
@@ -211,8 +227,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       
       // Refresh data
       loadFolders();
-      if (currentFolderId) {
-        loadFolderDetails(currentFolderId);
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
       }
       
       const destination = newParentId ? 'nouveau dossier' : 'racine';
@@ -228,8 +244,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       
       // Refresh data
       loadFolders();
-      if (currentFolderId) {
-        loadFolderDetails(currentFolderId);
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
       }
       
       toast.success(`Le dossier "${folder.name}" a été copié vers "${copiedFolder.name}"`);
@@ -247,8 +263,77 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   };
 
   const handleFolderClick = (folder: FolderInfo) => {
+    // Navigate into the folder
+    navigateToFolder(folder);
+    
+    // Also call the parent callback if provided
     if (onFolderSelect) {
       onFolderSelect(folder);
+    }
+  };
+
+  const navigateToFolder = (folder: FolderInfo) => {
+    // Add current folder to navigation stack if we're not at root
+    if (currentFolder) {
+      setNavigationStack(prev => [...prev, currentFolder]);
+    }
+    
+    // Navigate to the selected folder
+    setCurrentViewFolderId(folder.id);
+  };
+
+  const navigateBack = () => {
+    if (navigationStack.length > 0) {
+      // Go back to previous folder
+      const previousFolder = navigationStack[navigationStack.length - 1];
+      setNavigationStack(prev => prev.slice(0, -1));
+      setCurrentViewFolderId(previousFolder.id);
+    } else {
+      // Go back to root
+      setCurrentViewFolderId(null);
+      setCurrentFolder(null);
+    }
+  };
+
+  const navigateToRoot = () => {
+    setNavigationStack([]);
+    setCurrentViewFolderId(null);
+    setCurrentFolder(null);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        await fileService.uploadFile(file, (progress) => {
+          const totalProgress = ((i * 100) + progress) / files.length;
+          setUploadProgress(totalProgress);
+        }, currentViewFolderId || undefined);
+      }
+
+      // Refresh the current folder to show new files
+      if (currentViewFolderId) {
+        loadFolderDetails(currentViewFolderId);
+      } else {
+        loadFolders();
+      }
+      
+      toast.success(`${files.length} fichier(s) téléchargé(s) avec succès`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors du téléchargement");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setShowUploadModal(false);
+      // Reset file input
+      event.target.value = '';
     }
   };
 
@@ -256,16 +341,49 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     if (!currentFolder) return null;
 
     return (
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-        <Home className="h-4 w-4" />
-        {currentFolder.breadcrumb.map((item, index) => (
+      <div className="flex items-center gap-2 text-sm text-gray-600 mb-4 bg-gray-50 p-3 rounded-lg">
+        <button 
+          onClick={navigateToRoot}
+          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          <Home className="h-4 w-4" />
+          <span>Accueil</span>
+        </button>
+        {currentFolder.breadcrumb && currentFolder.breadcrumb.map((item: string, index: number) => (
           <React.Fragment key={index}>
-            <span>{item}</span>
-            {index < currentFolder.breadcrumb.length - 1 && (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <button 
+              onClick={() => {
+                // Navigate to this breadcrumb level
+                if (index === currentFolder.breadcrumb.length - 1) {
+                  // Current folder, do nothing
+                  return;
+                }
+                // For now, just show the text. In a full implementation,
+                // you'd need to track folder IDs in breadcrumb
+              }}
+              className={`hover:text-blue-600 transition-colors ${
+                index === currentFolder.breadcrumb.length - 1 ? 'text-gray-900 font-medium' : ''
+              }`}
+            >
+              {item}
+            </button>
           </React.Fragment>
         ))}
+        {navigationStack.length > 0 && (
+          <>
+            <div className="ml-auto">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={navigateBack}
+                className="text-xs"
+              >
+                ← Retour
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -375,6 +493,48 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     </Card>
   );
 
+  const renderFileCard = (file: any) => (
+    <Card key={file.id} className="hover:shadow-sm transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <File className="h-5 w-5 text-gray-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-medium text-sm">{file.fileName}</h4>
+            <p className="text-xs text-gray-500">
+              {file.formattedSize || `${Math.round(file.fileSize / 1024)} KB`}
+            </p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                if (file.fileName) {
+                  fileService.downloadFile(file.id, file.fileName);
+                }
+              }}>
+                <FileText className="h-4 w-4 mr-2" />
+                Télécharger
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => fileService.deleteFile(file.id)}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -385,7 +545,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header with search and create button */}
+      {/* Header with search and action buttons */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
           <div className="relative">
@@ -399,14 +559,37 @@ const FolderManager: React.FC<FolderManagerProps> = ({
           </div>
         </div>
 
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
-              <FolderPlus className="h-4 w-4 mr-2" />
-              Nouveau dossier
+        <div className="flex gap-2">
+          {/* Upload Button */}
+          <label htmlFor="file-upload">
+            <Button 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isUploading}
+              asChild
+            >
+              <span>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? `${Math.round(uploadProgress)}%` : 'Télécharger'}
+              </span>
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          </label>
+          <input
+            id="file-upload"
+            type="file"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Create Folder Button */}
+          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Nouveau dossier
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
             <DialogHeader className="text-center pb-4">
               <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <FolderPlus className="h-6 w-6 text-blue-600" />
@@ -523,6 +706,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Breadcrumb */}
@@ -540,23 +724,48 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         </div>
       )}
 
-      {/* Folder list */}
+      {/* Folder and file list */}
       {!searchQuery.trim() && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <h2 className="text-lg font-semibold">
             {currentFolder ? `Contenu de "${currentFolder.name}"` : 'Dossiers racine'}
-            ({currentFolder ? currentFolder.subfolders?.length || 0 : folders.length})
+            ({currentFolder ? (currentFolder.subfolders?.length || 0) + (currentFolder.files?.length || 0) : folders.length})
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(currentFolder ? currentFolder.subfolders || [] : folders).map(renderFolderCard)}
-          </div>
+          {/* Subfolders */}
+          {(currentFolder ? currentFolder.subfolders || [] : folders).length > 0 && (
+            <div>
+              <h3 className="text-md font-medium mb-3 text-gray-700">Dossiers</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(currentFolder ? currentFolder.subfolders || [] : folders).map(renderFolderCard)}
+              </div>
+            </div>
+          )}
           
-          {(currentFolder ? currentFolder.subfolders?.length === 0 : folders.length === 0) && (
+          {/* Files */}
+          {currentFolder?.files && currentFolder.files.length > 0 && (
+            <div>
+              <h3 className="text-md font-medium mb-3 text-gray-700">Fichiers</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {currentFolder.files.map(renderFileCard)}
+              </div>
+            </div>
+          )}
+          
+          {/* Empty state */}
+          {(currentFolder ? 
+            (currentFolder.subfolders?.length === 0 && currentFolder.files?.length === 0) : 
+            folders.length === 0
+          ) && (
             <div className="text-center p-8 text-gray-500">
               <Folder className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Aucun dossier trouvé</p>
-              <p className="text-sm">Créez votre premier dossier pour commencer</p>
+              <p>Aucun contenu trouvé</p>
+              <p className="text-sm">
+                {currentFolder ? 
+                  "Ce dossier est vide. Ajoutez des fichiers ou créez des sous-dossiers." :
+                  "Créez votre premier dossier pour commencer"
+                }
+              </p>
             </div>
           )}
         </div>
