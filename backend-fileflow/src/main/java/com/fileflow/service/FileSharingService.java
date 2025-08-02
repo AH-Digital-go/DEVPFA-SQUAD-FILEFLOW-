@@ -1,7 +1,7 @@
 package com.fileflow.service;
 
 import com.fileflow.dto.FileShareDTO;
-import com.fileflow.entity.FileMetadata;
+import com.fileflow.entity.File;
 import com.fileflow.entity.FileShare;
 import com.fileflow.entity.User;
 import com.fileflow.repository.FileRepository;
@@ -41,7 +41,7 @@ public class FileSharingService {
                                        Integer expirationDays, String password, Boolean allowDownload) {
         
         // Vérifier que le fichier appartient à l'utilisateur
-        FileMetadata file = fileRepository.findByIdAndUserId(fileId, userId)
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found or access denied"));
         
         User user = userRepository.findById(userId)

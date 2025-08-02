@@ -1,7 +1,7 @@
 package com.fileflow.controller;
 
 import com.fileflow.utils.ApiResponse;
-import com.fileflow.dto.FileMetadataDTO;
+import com.fileflow.dto.FileDTO;
 import com.fileflow.security.CustomUserDetails;
 import com.fileflow.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,13 +32,13 @@ public class FileController {
 
     @PostMapping("/upload")
     @Operation(summary = "Upload a file")
-    public ResponseEntity<ApiResponse<FileMetadataDTO>> uploadFile(
+    public ResponseEntity<ApiResponse<FileDTO>> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folderId", required = false) Long folderId,
             Authentication authentication) {
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            FileMetadataDTO uploadedFile = fileService.uploadFile(file, userDetails.getId(), folderId);
+            FileDTO uploadedFile = fileService.uploadFile(file, userDetails.getId(), folderId);
             return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", uploadedFile));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -58,7 +58,7 @@ public class FileController {
 
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            List<FileMetadataDTO> files;
+            List<FileDTO> files;
 
             if (search != null && !search.isBlank()) {
                 files = fileService.searchFiles(userDetails.getId(), search.trim());
@@ -80,12 +80,12 @@ public class FileController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get file details")
-    public ResponseEntity<ApiResponse<FileMetadataDTO>> getFileDetails(
+    public ResponseEntity<ApiResponse<FileDTO>> getFileDetails(
             @PathVariable Long id,
             Authentication authentication) {
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            FileMetadataDTO file = fileService.getFileDetails(id, userDetails.getId());
+            FileDTO file = fileService.getFileDetails(id, userDetails.getId());
             return ResponseEntity.ok(ApiResponse.success("File details retrieved", file));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -103,7 +103,7 @@ public class FileController {
             Resource resource = fileService.downloadFile(id, userDetails.getId());
             
             // Get file metadata for proper headers
-            FileMetadataDTO fileMetadata = fileService.getFileDetails(id, userDetails.getId());
+            FileDTO fileMetadata = fileService.getFileDetails(id, userDetails.getId());
             
             return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(fileMetadata.getContentType()))
@@ -117,7 +117,7 @@ public class FileController {
 
     @PutMapping("/{id}/rename")
     @Operation(summary = "Rename a file")
-    public ResponseEntity<ApiResponse<FileMetadataDTO>> renameFile(
+    public ResponseEntity<ApiResponse<FileDTO>> renameFile(
             @PathVariable Long id,
             @RequestBody Map<String, String> request,
             Authentication authentication) {
@@ -130,7 +130,7 @@ public class FileController {
                     .body(ApiResponse.error("File name is required"));
             }
             
-            FileMetadataDTO renamedFile = fileService.renameFile(id, userDetails.getId(), newName.trim());
+            FileDTO renamedFile = fileService.renameFile(id, userDetails.getId(), newName.trim());
             return ResponseEntity.ok(ApiResponse.success("File renamed successfully", renamedFile));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -168,12 +168,12 @@ public class FileController {
 
     @GetMapping("/folder/{folderId}")
     @Operation(summary = "Get files in a specific folder")
-    public ResponseEntity<ApiResponse<List<FileMetadataDTO>>> getFilesByFolder(
+    public ResponseEntity<ApiResponse<List<FileDTO>>> getFilesByFolder(
             @PathVariable Long folderId,
             Authentication authentication) {
         try {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            List<FileMetadataDTO> files = fileService.getFilesByFolder(folderId, userDetails.getId());
+            List<FileDTO> files = fileService.getFilesByFolder(folderId, userDetails.getId());
             return ResponseEntity.ok(ApiResponse.success("Files retrieved successfully", files));
         } catch (Exception e) {
             return ResponseEntity.badRequest()

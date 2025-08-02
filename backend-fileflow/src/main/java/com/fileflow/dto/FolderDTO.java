@@ -35,7 +35,7 @@ public class FolderDTO {
     private List<FolderDTO> subfolders = new ArrayList<>();
     
     @JsonInclude(Include.NON_EMPTY)
-    private List<FileMetadataDTO> files = new ArrayList<>();
+    private List<FileDTO> files = new ArrayList<>();
     
     @JsonInclude(Include.NON_EMPTY)
     private List<String> breadcrumb = new ArrayList<>();

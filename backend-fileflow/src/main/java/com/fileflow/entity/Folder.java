@@ -48,7 +48,7 @@ public class Folder {
     private List<Folder> subfolders = new ArrayList<>();
 
     @OneToMany(mappedBy = "folder", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<FileMetadata> files = new ArrayList<>();
+    private List<File> files = new ArrayList<>();
 
     @Column(name = "is_favorite", nullable = false)
     private Boolean isFavorite = false;
@@ -82,7 +82,7 @@ public class Folder {
     }
 
     public long getTotalSize() {
-        long size = files.stream().mapToLong(FileMetadata::getFileSize).sum();
+        long size = files.stream().mapToLong(File::getFileSize).sum();
         for (Folder subfolder : subfolders) {
             size += subfolder.getTotalSize();
         }

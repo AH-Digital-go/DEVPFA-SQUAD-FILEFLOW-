@@ -10,11 +10,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "file_metadata")
+@Table(name = "file")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class FileMetadata {
+public class File {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
