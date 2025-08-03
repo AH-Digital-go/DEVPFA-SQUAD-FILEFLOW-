@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFileStore } from '../store/fileStore';
-import { fileService, FileMetadata } from '../services/fileService';
+import { fileService, FileDTO } from '../services/fileService';
 import { toast } from 'react-toastify';
 
 export const useUpload = () => {
@@ -8,15 +8,16 @@ export const useUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const { addFile } = useFileStore();
 
-  // Fonction pour convertir FileMetadata en FileItem
-  const convertToFileItem = (fileMetadata: FileMetadata) => ({
-    id: fileMetadata.id.toString(), // Conversion Long vers string
-    name: fileMetadata.originalFileName,
-    type: fileMetadata.contentType,
-    size: fileMetadata.fileSize,
-    createdAt: fileMetadata.createdAt,
-    updatedAt: fileMetadata.updatedAt,
-    isFavorite: fileMetadata.isFavorite,
+  // Fonction pour convertir FileDTO en FileItem
+  const convertToFileItem = (fileDto: FileDTO) => ({
+    id: fileDto.id.toString(), // Conversion Long vers string
+    name: fileDto.originalFileName,
+    originalFileName: fileDto.originalFileName,
+    type: fileDto.contentType,
+    size: fileDto.fileSize,
+    createdAt: fileDto.createdAt,
+    updatedAt: fileDto.updatedAt,
+    isFavorite: fileDto.isFavorite,
   });
 
   const uploadFiles = async (files: File[]) => {
@@ -29,7 +30,7 @@ export const useUpload = () => {
       try {
         setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
         
-        // fileService.uploadFile retourne directement FileMetadata
+        // fileService.uploadFile retourne directement FileDTO
         const fileMetadata = await fileService.uploadFile(file, (progress) => {
           setUploadProgress(prev => ({ ...prev, [fileId]: progress }));
         });

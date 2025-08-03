@@ -43,7 +43,7 @@ const DashboardPage = () => {
   const loadFiles = useCallback(async () => {
     try {
       const filesData = await fileService.getFiles();
-      // Convert FileMetadata[] to FileItem[]
+      // Convert FileDTO[] to FileItem[]
       const mappedFiles = filesData.map(file => ({
         id: file.id.toString(),
         name: file.fileName,

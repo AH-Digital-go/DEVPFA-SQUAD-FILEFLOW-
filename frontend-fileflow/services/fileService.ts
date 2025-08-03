@@ -1,13 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import {
-  FileMetadata,
+  FileDTO,
   ApiResponse,
   ShareFileRequest,
   FileShare,
   SharedFileInfo,
   FolderInfo,
   FolderUpdateRequest,
+  FileStatistics,
 } from '@/types/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088/api';
@@ -61,19 +62,19 @@ const addAuthInterceptor = (apiInstance: AxiosInstance): void => {
 
 // === FILE SERVICE ===
 export const fileService = {
-  async getFiles(page?: number, size?: number, search?: string): Promise<FileMetadata[]> {
+  async getFiles(page?: number, size?: number, search?: string): Promise<FileDTO[]> {
     const params = new URLSearchParams();
     if (page) params.append('page', page.toString());
     if (size) params.append('size', size.toString());
     if (search) params.append('search', search);
 
-    const response = await fileAPI.get<ApiResponse<FileMetadata[]>>(`/?${params.toString()}`);
+    const response = await fileAPI.get<ApiResponse<FileDTO[]>>(`/?${params.toString()}`);
     console.log("response :", response);
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
 
-  async uploadFile(file: File, onProgress?: (progress: number) => void, folderId?: number): Promise<FileMetadata> {
+  async uploadFile(file: File, onProgress?: (progress: number) => void, folderId?: number): Promise<FileDTO> {
     if (!file || file.size === 0) throw new Error('Fichier invalide');
 
     const formData = new FormData();
@@ -82,7 +83,7 @@ export const fileService = {
       formData.append('folderId', folderId.toString());
     }
 
-    const response = await fileAPI.post<ApiResponse<FileMetadata>>('/upload', formData, {
+    const response = await fileAPI.post<ApiResponse<FileDTO>>('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (e) => {
         if (onProgress && e.total) {
@@ -101,20 +102,20 @@ export const fileService = {
     if (!response.data.success) throw new Error(response.data.message);
   },
 
-  async renameFile(id: number, fileName: string): Promise<FileMetadata> {
-    const response = await fileAPI.put<ApiResponse<FileMetadata>>(`/${id}/rename`, { fileName });
+  async renameFile(id: number, fileName: string): Promise<FileDTO> {
+    const response = await fileAPI.put<ApiResponse<FileDTO>>(`/${id}/rename`, { fileName });
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
 
-  async toggleFavorite(id: number): Promise<FileMetadata> {
-    const response = await favoritesAPI.post<ApiResponse<FileMetadata>>(`/${id}`);
+  async toggleFavorite(id: number): Promise<FileDTO> {
+    const response = await favoritesAPI.post<ApiResponse<FileDTO>>(`/${id}`);
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
 
-  async getFavorites(): Promise<FileMetadata[]> {
-    const response = await favoritesAPI.get<ApiResponse<FileMetadata[]>>('/');
+  async getFavorites(): Promise<FileDTO[]> {
+    const response = await favoritesAPI.get<ApiResponse<FileDTO[]>>('/');
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
@@ -129,6 +130,12 @@ export const fileService = {
     link.click();
     link.remove();
     return response.data;
+  },
+
+  async getFileStatistics(): Promise<FileStatistics> {
+    const response = await fileAPI.get<ApiResponse<FileStatistics>>('/statistics');
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
   },
 
   // === SHARING ===
@@ -232,9 +239,12 @@ export const fileService = {
     throw new Error(response.data.message);
   },
 
-  async getFolderFiles(folderId: number): Promise<FileMetadata[]> {
-    const response = await fileAPI.get<ApiResponse<FileMetadata[]>>(`/folder/${folderId}`);
+  async getFolderFiles(folderId: number): Promise<FileDTO[]> {
+    const response = await fileAPI.get<ApiResponse<FileDTO[]>>(`/folder/${folderId}`);
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
 };
+
+// Export types for easier imports
+export type { FileDTO };

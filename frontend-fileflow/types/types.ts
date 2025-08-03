@@ -51,8 +51,8 @@ export interface UserUpdateRequest {
 }
 
 // for file:
-// Updated FileItem to match backend FileMetadataDTO
-export interface FileMetadata {
+// Updated FileItem to match backend FileDTO
+export interface FileDTO {
   id: number;
   fileName: string;
   originalFileName: string;
@@ -75,7 +75,7 @@ export interface UserStorageInfo {
 }
 
 export interface UploadResponse {
-  file: FileMetadata;
+  file: FileDTO;
   message: string;
 }
 
@@ -147,7 +147,7 @@ export interface FolderInfo {
   totalSize: number;
   formattedSize: string;
   subfolders?: FolderInfo[];
-  files?: FileMetadata[];
+  files?: FileDTO[];
   breadcrumb: string[];
 }
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Heart, Files } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
-import { fileService, FileMetadata } from '../services/fileService';
+import { fileService, FileDTO } from '../services/fileService';
 import FileCard from '../components/FileCard';
 import AnimatedLoader from '../components/AnimatedLoader';
 
@@ -23,20 +23,16 @@ const FavouritesPage = () => {
       // Utilisez getFavorites() au lieu de getFiles() pour récupérer uniquement les favoris
       const favoritesData = await fileService.getFavorites();
       
-      // Mapper FileMetadata vers FileItem si nécessaire
-      const mappedFavorites = favoritesData.map((file: FileMetadata) => ({
-        id: file.id.toString(), // Convertir number en string si nécessaire
-        name: file.fileName,
-        originalName: file.originalFileName,
+      // Mapper FileDTO vers FileItem si nécessaire
+      const mappedFavorites = favoritesData.map(file => ({
+        id: file.id.toString(), 
+        name: file.originalFileName,
+        originalFileName: file.originalFileName,
         type: file.contentType,
         size: file.fileSize,
-        uuid: file.fileUuid,
-        isFavorite: file.isFavorite,
         createdAt: file.createdAt,
         updatedAt: file.updatedAt,
-        extension: file.fileExtension,
-        formattedSize: file.formattedFileSize,
-        // Ajoutez d'autres propriétés si nécessaires selon votre interface FileItem
+        isFavorite: file.isFavorite,
       }));
 
       setFiles(mappedFavorites);
