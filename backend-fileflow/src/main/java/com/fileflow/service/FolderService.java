@@ -2,8 +2,10 @@ package com.fileflow.service;
 
 import com.fileflow.dto.FileDTO;
 import com.fileflow.dto.FolderDTO;
+import com.fileflow.entity.File;
 import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
+import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,11 +27,13 @@ public class FolderService {
 
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
+    private final FileRepository fileRepository;
 
     @Autowired
-    public FolderService(FolderRepository folderRepository, UserRepository userRepository) {
+    public FolderService(FolderRepository folderRepository, UserRepository userRepository, FileRepository fileRepository) {
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
+        this.fileRepository = fileRepository;
     }
 
     public FolderDTO createFolder(String name, Long parentId, Long userId) {
@@ -137,16 +145,44 @@ public class FolderService {
         return convertToDTO(folder, false);
     }
 
+    @Transactional
     public void deleteFolder(Long folderId, Long userId) {
         Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
             .orElseThrow(() -> new RuntimeException("Folder not found"));
 
-        // Vérifier que le dossier est vide
-        if (!folder.getFiles().isEmpty() || !folder.getSubfolders().isEmpty()) {
-            throw new RuntimeException("Cannot delete folder: folder is not empty");
-        }
-
+        // Delete all files in the folder first
+        deleteFolderContentsRecursively(folder);
+        
+        // Now delete the folder itself
         folderRepository.delete(folder);
+    }
+    
+    private void deleteFolderContentsRecursively(Folder folder) {
+        // Delete all files in this folder
+        if (!folder.getFiles().isEmpty()) {
+            for (File file : new ArrayList<>(folder.getFiles())) {
+                // Delete physical file from storage
+                try {
+                    Path filePath = Paths.get(file.getFilePath());
+                    if (Files.exists(filePath)) {
+                        Files.delete(filePath);
+                    }
+                } catch (IOException e) {
+                    // Log error but continue with deletion
+                    log.warn("Could not delete physical file: " + file.getFilePath(), e);
+                }
+                // Delete file record from database
+                fileRepository.delete(file);
+            }
+        }
+        
+        // Recursively delete all subfolders
+        if (!folder.getSubfolders().isEmpty()) {
+            for (Folder subfolder : new ArrayList<>(folder.getSubfolders())) {
+                deleteFolderContentsRecursively(subfolder);
+                folderRepository.delete(subfolder);
+            }
+        }
     }
 
     public List<FolderDTO> getFavoriteFolders(Long userId) {
