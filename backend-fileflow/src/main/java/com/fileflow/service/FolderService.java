@@ -390,9 +390,15 @@ public class FolderService {
                         FileDTO fileDto = new FileDTO();
                         fileDto.setId(file.getId());
                         fileDto.setFileName(file.getFileName());
+                        fileDto.setOriginalFileName(file.getOriginalFileName());
+                        fileDto.setName(file.getOriginalFileName()); // Set display name to original filename
                         fileDto.setFileSize(file.getFileSize());
                         fileDto.setContentType(file.getContentType());
+                        fileDto.setFileUuid(file.getFileUuid());
+                        fileDto.setIsFavorite(file.getIsFavorite());
                         fileDto.setCreatedAt(file.getCreatedAt());
+                        fileDto.setUpdatedAt(file.getUpdatedAt());
+                        fileDto.setFileExtension(file.getFileExtension());
                         return fileDto;
                     })
                     .collect(Collectors.toList()));
@@ -424,5 +430,194 @@ public class FolderService {
         int exp = (int) (Math.log(size) / Math.log(1024));
         String pre = "KMGTPE".charAt(exp - 1) + "";
         return String.format("%.1f %sB", size / Math.pow(1024, exp), pre);
+    }
+
+    // =========================
+    // BULK OPERATIONS
+    // =========================
+
+    /**
+     * Bulk move multiple folders to a new parent folder
+     * @param folderIds List of folder IDs to move
+     * @param newParentId Target parent folder ID (null for root)
+     * @param userId User ID performing the operation
+     * @return List of moved folder DTOs
+     */
+    @Transactional
+    public List<FolderDTO> bulkMoveFolder(List<Long> folderIds, Long newParentId, Long userId) {
+        if (folderIds == null || folderIds.isEmpty()) {
+            throw new RuntimeException("No folders specified for bulk move");
+        }
+
+        // Validate all folders exist and belong to user
+        List<Folder> foldersToMove = new ArrayList<>();
+        for (Long folderId : folderIds) {
+            Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new RuntimeException("Folder not found: " + folderId));
+            foldersToMove.add(folder);
+        }
+
+        // Validate target parent (if not null)
+        Folder newParent = null;
+        if (newParentId != null) {
+            newParent = folderRepository.findByIdAndUserId(newParentId, userId)
+                .orElseThrow(() -> new RuntimeException("Target folder not found"));
+        }
+
+        // Validate operations - prevent circular references and conflicts
+        for (Folder folder : foldersToMove) {
+            validateMoveOperation(folder, newParent, userId);
+        }
+
+        // Perform bulk move
+        List<FolderDTO> movedFolders = new ArrayList<>();
+        for (Folder folder : foldersToMove) {
+            folder.setParent(newParent);
+            updateFolderPath(folder);
+            Folder savedFolder = folderRepository.save(folder);
+            movedFolders.add(convertToDTO(savedFolder, false));
+        }
+
+        return movedFolders;
+    }
+
+    /**
+     * Bulk copy multiple folders to a new parent folder
+     * @param folderIds List of folder IDs to copy
+     * @param newParentId Target parent folder ID (null for root)
+     * @param userId User ID performing the operation
+     * @return List of copied folder DTOs
+     */
+    @Transactional
+    public List<FolderDTO> bulkCopyFolder(List<Long> folderIds, Long newParentId, Long userId) {
+        if (folderIds == null || folderIds.isEmpty()) {
+            throw new RuntimeException("No folders specified for bulk copy");
+        }
+
+        // Validate all folders exist and belong to user
+        List<Folder> foldersToCopy = new ArrayList<>();
+        for (Long folderId : folderIds) {
+            Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new RuntimeException("Folder not found: " + folderId));
+            foldersToCopy.add(folder);
+        }
+
+        // Validate target parent (if not null)
+        Folder newParent = null;
+        if (newParentId != null) {
+            newParent = folderRepository.findByIdAndUserId(newParentId, userId)
+                .orElseThrow(() -> new RuntimeException("Target folder not found"));
+        }
+
+        // Perform bulk copy
+        List<FolderDTO> copiedFolders = new ArrayList<>();
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        for (Folder folder : foldersToCopy) {
+            // Generate unique name for copy
+            String copyName = generateCopyName(folder.getName(), newParent, userId);
+            
+            // Create copy using existing method
+            Long newParentIdForCopy = newParent != null ? newParent.getId() : null;
+            Folder copiedFolder = copyFolderRecursively(folder, newParentIdForCopy, copyName, user);
+            copiedFolders.add(convertToDTO(copiedFolder, false));
+        }
+
+        return copiedFolders;
+    }
+
+    /**
+     * Bulk delete multiple folders
+     * @param folderIds List of folder IDs to delete
+     * @param userId User ID performing the operation
+     * @return Number of folders deleted
+     */
+    @Transactional
+    public int bulkDeleteFolder(List<Long> folderIds, Long userId) {
+        if (folderIds == null || folderIds.isEmpty()) {
+            throw new RuntimeException("No folders specified for bulk delete");
+        }
+
+        // Validate all folders exist and belong to user
+        List<Folder> foldersToDelete = new ArrayList<>();
+        for (Long folderId : folderIds) {
+            Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new RuntimeException("Folder not found: " + folderId));
+            foldersToDelete.add(folder);
+        }
+
+        // Perform bulk delete
+        int deletedCount = 0;
+        for (Folder folder : foldersToDelete) {
+            try {
+                // Delete folder contents recursively (files and subfolders)
+                deleteFolderContentsRecursively(folder);
+                
+                // Delete the folder itself
+                folderRepository.delete(folder);
+                deletedCount++;
+            } catch (Exception e) {
+                // Log error but continue with other folders
+                System.err.println("Failed to delete folder " + folder.getId() + ": " + e.getMessage());
+            }
+        }
+
+        return deletedCount;
+    }
+
+    /**
+     * Helper method to validate move operations
+     */
+    private void validateMoveOperation(Folder folder, Folder newParent, Long userId) {
+        // Check if trying to move folder into itself
+        if (newParent != null && folder.getId().equals(newParent.getId())) {
+            throw new RuntimeException("Cannot move folder into itself");
+        }
+
+        // Check if trying to move folder into its descendant
+        if (newParent != null && isDescendant(folder, newParent.getId())) {
+            throw new RuntimeException("Cannot move folder into its descendant");
+        }
+
+        // Check for name conflicts
+        String folderName = folder.getName();
+        if (newParent != null) {
+            if (folderRepository.findByUserIdAndNameAndParentId(userId, folderName, newParent.getId()).isPresent()) {
+                throw new RuntimeException("A folder with name '" + folderName + "' already exists in the target location");
+            }
+        } else {
+            if (folderRepository.findByUserIdAndNameAndParentIsNull(userId, folderName).isPresent()) {
+                throw new RuntimeException("A folder with name '" + folderName + "' already exists in the root directory");
+            }
+        }
+    }
+
+    /**
+     * Helper method to generate unique copy names
+     */
+    private String generateCopyName(String originalName, Folder parent, Long userId) {
+        String baseName = originalName;
+        String copyName = baseName + " - Copy";
+        int counter = 1;
+
+        // Keep trying until we find a unique name
+        while (nameExistsInLocation(copyName, parent, userId)) {
+            counter++;
+            copyName = baseName + " - Copy (" + counter + ")";
+        }
+
+        return copyName;
+    }
+
+    /**
+     * Helper method to check if name exists in location
+     */
+    private boolean nameExistsInLocation(String name, Folder parent, Long userId) {
+        if (parent != null) {
+            return folderRepository.findByUserIdAndNameAndParentId(userId, name, parent.getId()).isPresent();
+        } else {
+            return folderRepository.findByUserIdAndNameAndParentIsNull(userId, name).isPresent();
+        }
     }
 }

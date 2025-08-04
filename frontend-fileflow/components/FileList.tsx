@@ -87,7 +87,7 @@ const FileList = () => {
       const filesData = await fileService.getFiles();
       const convertedFiles = filesData.map(file => ({
         id: String(file.id),
-        name: file.fileName,
+        name: file.name || file.originalFileName, // Use the display name (original filename)
         originalFileName: file.originalFileName,
         type: file.contentType,
         size: file.fileSize,

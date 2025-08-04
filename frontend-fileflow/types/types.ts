@@ -56,6 +56,7 @@ export interface FileDTO {
   id: number;
   fileName: string;
   originalFileName: string;
+  name?: string; // Display name (usually same as originalFileName)
   contentType: string;
   fileSize: number;
   fileUuid: string;

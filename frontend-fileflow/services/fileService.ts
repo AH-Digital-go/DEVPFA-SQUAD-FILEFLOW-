@@ -244,6 +244,36 @@ export const fileService = {
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
+
+  // =========================
+  // BULK OPERATIONS
+  // =========================
+
+  async bulkMoveFolder(folderIds: number[], newParentId: number | null): Promise<FolderInfo[]> {
+    const response = await foldersAPI.post<ApiResponse<FolderInfo[]>>('/bulk/move', {
+      folderIds,
+      newParentId
+    });
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async bulkCopyFolder(folderIds: number[], newParentId: number | null): Promise<FolderInfo[]> {
+    const response = await foldersAPI.post<ApiResponse<FolderInfo[]>>('/bulk/copy', {
+      folderIds,
+      newParentId
+    });
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async bulkDeleteFolder(folderIds: number[]): Promise<{ deletedCount: number; totalRequested: number; message: string }> {
+    const response = await foldersAPI.delete<ApiResponse<{ deletedCount: number; totalRequested: number; message: string }>>('/bulk/delete', {
+      data: { folderIds }
+    });
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
 };
 
 // Export types for easier imports

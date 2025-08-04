@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 import Link from 'next/link';
 import { Files, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { SendVerificationCodeInput } from './SendVerificationCodeInput';
+import { SendVerificationCodeInput } from '../components/SendVerificationCodeInput';
 import { useVerificationCode } from '@/hooks/useVerificationCode';
 import { toast } from 'react-toastify';
 

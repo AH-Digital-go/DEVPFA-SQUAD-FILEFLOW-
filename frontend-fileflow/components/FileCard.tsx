@@ -23,6 +23,7 @@ import { toast } from 'react-toastify';
 
 interface FileCardProps {
   file: FileItem;
+  onRefresh?: () => void; // Optional callback for refresh after deletion
 }
 
 const getFileIcon = (type: string) => {
@@ -53,7 +54,7 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const FileCard: React.FC<FileCardProps> = ({ file }) => {
+const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(file.originalFileName || file.name);
@@ -121,6 +122,10 @@ const FileCard: React.FC<FileCardProps> = ({ file }) => {
         await fileService.deleteFile(Number(file.id));
         removeFile(file.id);
         toast.success('Fichier supprimé avec succès');
+        // Call refresh callback if provided (for folder context)
+        if (onRefresh) {
+          onRefresh();
+        }
       } catch (error) {
         toast.error('Erreur lors de la suppression');
       }

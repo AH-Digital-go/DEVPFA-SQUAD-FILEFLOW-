@@ -222,7 +222,7 @@ public class FileService {
         dto.setId(file.getId());
         dto.setFileName(file.getFileName());
         dto.setOriginalFileName(file.getOriginalFileName());
-       // dto.setName(file.getOriginalFileName());
+        dto.setName(file.getOriginalFileName()); // Set the display name to original filename
         dto.setContentType(file.getContentType());
         dto.setFileSize(file.getFileSize());
         dto.setFileUuid(file.getFileUuid());

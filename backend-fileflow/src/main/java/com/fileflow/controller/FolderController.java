@@ -1,5 +1,7 @@
 package com.fileflow.controller;
 
+import com.fileflow.dto.BulkDeleteResponse;
+import com.fileflow.dto.BulkOperationRequest;
 import com.fileflow.utils.ApiResponse;
 import com.fileflow.dto.FolderDTO;
 import com.fileflow.security.CustomUserDetails;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -205,6 +208,69 @@ public class FolderController {
             
             FolderDTO folder = folderService.copyFolder(id, newParentId, newName, userDetails.getId());
             return ResponseEntity.ok(ApiResponse.success("Folder copied successfully", folder));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // =========================
+    // BULK OPERATIONS
+    // =========================
+
+    @PostMapping("/bulk/move")
+    @Operation(summary = "Bulk move folders")
+    public ResponseEntity<ApiResponse<List<FolderDTO>>> bulkMoveFolder(
+            @RequestBody BulkOperationRequest request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderDTO> movedFolders = folderService.bulkMoveFolder(
+                request.getFolderIds(), 
+                request.getNewParentId(), 
+                userDetails.getId()
+            );
+            return ResponseEntity.ok(ApiResponse.success("Folders moved successfully", movedFolders));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/bulk/copy")
+    @Operation(summary = "Bulk copy folders")
+    public ResponseEntity<ApiResponse<List<FolderDTO>>> bulkCopyFolder(
+            @RequestBody BulkOperationRequest request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderDTO> copiedFolders = folderService.bulkCopyFolder(
+                request.getFolderIds(), 
+                request.getNewParentId(), 
+                userDetails.getId()
+            );
+            return ResponseEntity.ok(ApiResponse.success("Folders copied successfully", copiedFolders));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/bulk/delete")
+    @Operation(summary = "Bulk delete folders")
+    public ResponseEntity<ApiResponse<BulkDeleteResponse>> bulkDeleteFolder(
+            @RequestBody BulkOperationRequest request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            int deletedCount = folderService.bulkDeleteFolder(request.getFolderIds(), userDetails.getId());
+            
+            BulkDeleteResponse response = new BulkDeleteResponse(deletedCount, request.getFolderIds().size());
+            
+            return ResponseEntity.ok(ApiResponse.success("Bulk delete completed", response));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error(e.getMessage()));

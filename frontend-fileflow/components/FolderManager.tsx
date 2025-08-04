@@ -23,7 +23,12 @@ import {
   Move,
   Copy,
   Upload,
-  File
+  File,
+  CheckSquare,
+  Square,
+  X,
+  Check,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -59,6 +64,13 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   const [editFolderName, setEditFolderName] = useState('');
   const [editFolderColor, setEditFolderColor] = useState('');
   const [editFolderDescription, setEditFolderDescription] = useState('');
+  
+  // Bulk selection states
+  const [selectedFolders, setSelectedFolders] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showDestinationModal, setShowDestinationModal] = useState(false);
+  const [bulkOperation, setBulkOperation] = useState<'move' | 'copy' | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     loadFolders();
@@ -98,10 +110,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     }
   };
 
-  const loadFolderDetails = async (folderId: number) => {
+  const loadFolderDetails = async (folderId: number | null) => {
     try {
-      const folder = await fileService.getFolderDetails(folderId);
-      setCurrentFolder(folder);
+      if (folderId === null) {
+        // Load root folder content
+        setCurrentFolder(null);
+        await loadFolders(); // Load root folders
+      } else {
+        const folder = await fileService.getFolderDetails(folderId);
+        setCurrentFolder(folder);
+      }
     } catch (error) {
       toast.error("Impossible de charger les détails du dossier");
     }
@@ -265,40 +283,155 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   const handleFolderClick = (folder: FolderInfo) => {
     // Navigate into the folder
     navigateToFolder(folder);
-    
-    // Also call the parent callback if provided
-    if (onFolderSelect) {
-      onFolderSelect(folder);
+  };
+
+  const navigateToFolder = async (folder: FolderInfo) => {
+    try {
+      // Add current folder to navigation stack if we're not at root
+      if (currentFolder) {
+        setNavigationStack(prev => [...prev, currentFolder]);
+      }
+      
+      // Navigate to the selected folder and load its details
+      setCurrentViewFolderId(folder.id);
+      await loadFolderDetails(folder.id);
+      
+      // Trigger onFolderSelect callback if provided
+      if (onFolderSelect) {
+        onFolderSelect(folder);
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast.error('Impossible de naviguer vers ce dossier');
     }
   };
 
-  const navigateToFolder = (folder: FolderInfo) => {
-    // Add current folder to navigation stack if we're not at root
-    if (currentFolder) {
-      setNavigationStack(prev => [...prev, currentFolder]);
-    }
-    
-    // Navigate to the selected folder
-    setCurrentViewFolderId(folder.id);
-  };
-
-  const navigateBack = () => {
+  const navigateBack = async () => {
     if (navigationStack.length > 0) {
       // Go back to previous folder
       const previousFolder = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       setCurrentViewFolderId(previousFolder.id);
+      await loadFolderDetails(previousFolder.id);
     } else {
       // Go back to root
       setCurrentViewFolderId(null);
       setCurrentFolder(null);
+      // Load root folder content
+      await loadFolderDetails(null);
     }
   };
 
-  const navigateToRoot = () => {
+  const navigateToRoot = async () => {
     setNavigationStack([]);
     setCurrentViewFolderId(null);
     setCurrentFolder(null);
+    await loadFolderDetails(null);
+  };
+
+  // =========================
+  // BULK SELECTION FUNCTIONS
+  // =========================
+
+  const toggleFolderSelection = (folderId: number) => {
+    const newSelected = new Set(selectedFolders);
+    if (newSelected.has(folderId)) {
+      newSelected.delete(folderId);
+    } else {
+      newSelected.add(folderId);
+    }
+    setSelectedFolders(newSelected);
+    
+    // Auto-exit selection mode if no folders selected
+    if (newSelected.size === 0) {
+      setIsSelectionMode(false);
+    }
+  };
+
+  const selectAllFolders = () => {
+    const allFolderIds = new Set(folders.map(folder => folder.id));
+    setSelectedFolders(allFolderIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedFolders(new Set());
+    setIsSelectionMode(false);
+  };
+
+  const startBulkOperation = (operation: 'move' | 'copy') => {
+    if (selectedFolders.size === 0) {
+      toast.error('Aucun dossier sélectionné');
+      return;
+    }
+    setBulkOperation(operation);
+    setShowDestinationModal(true);
+  };
+
+  const executeBulkDelete = async () => {
+    if (selectedFolders.size === 0) {
+      toast.error('Aucun dossier sélectionné');
+      return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedFolders.size} dossier(s) ?`)) {
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const folderIds = Array.from(selectedFolders);
+      const result = await fileService.bulkDeleteFolder(folderIds);
+      
+      toast.success(`${result.deletedCount} dossier(s) supprimé(s) avec succès`);
+      
+      // Refresh current view
+      if (currentViewFolderId) {
+        await loadFolderDetails(currentViewFolderId);
+      } else {
+        await loadFolders();
+      }
+      
+      clearSelection();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression en lot');
+      console.error('Bulk delete error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const executeBulkOperation = async (destinationFolderId: number | null) => {
+    if (selectedFolders.size === 0 || !bulkOperation) return;
+
+    setBulkLoading(true);
+    try {
+      const folderIds = Array.from(selectedFolders);
+      let result;
+
+      if (bulkOperation === 'move') {
+        result = await fileService.bulkMoveFolder(folderIds, destinationFolderId);
+        toast.success(`${result.length} dossier(s) déplacé(s) avec succès`);
+      } else if (bulkOperation === 'copy') {
+        result = await fileService.bulkCopyFolder(folderIds, destinationFolderId);
+        toast.success(`${result.length} dossier(s) copié(s) avec succès`);
+      }
+
+      // Refresh current view
+      if (currentViewFolderId) {
+        await loadFolderDetails(currentViewFolderId);
+      } else {
+        await loadFolders();
+      }
+
+      clearSelection();
+      setShowDestinationModal(false);
+      setBulkOperation(null);
+    } catch (error) {
+      toast.error(`Erreur lors de l'opération en lot`);
+      console.error('Bulk operation error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -388,110 +521,143 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     );
   };
 
-  const renderFolderCard = (folder: FolderInfo) => (
-    <Card 
-      key={folder.id} 
-      className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={() => handleFolderClick(folder)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ 
-                backgroundColor: folder.color || '#3B82F6',
-                color: 'white'
-              }}
-            >
-              <Folder className="h-5 w-5" />
-            </div>
-            
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-medium">{folder.name}</h3>
-                {folder.isFavorite && (
-                  <Heart className="h-4 w-4 text-red-500 fill-current" />
-                )}
-              </div>
-              
-              {folder.description && (
-                <p className="text-sm text-gray-600 mt-1">{folder.description}</p>
+  const renderFolderCard = (folder: FolderInfo) => {
+    const isSelected = selectedFolders.has(folder.id);
+    
+    return (
+      <Card 
+        key={folder.id} 
+        className={`cursor-pointer hover:shadow-md transition-all ${
+          isSelected ? 'ring-2 ring-blue-500 shadow-md' : ''
+        } ${isSelectionMode ? 'select-none' : ''}`}
+        onClick={(e) => {
+          if (isSelectionMode) {
+            e.stopPropagation();
+            toggleFolderSelection(folder.id);
+          } else {
+            handleFolderClick(folder);
+          }
+        }}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              {/* Selection checkbox (visible in selection mode) */}
+              {isSelectionMode && (
+                <div 
+                  className="flex items-center justify-center w-6 h-6 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFolderSelection(folder.id);
+                  }}
+                >
+                  {isSelected ? (
+                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <Square className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
               )}
               
-              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <FileText className="h-3 w-3" />
-                  {folder.fileCount} fichiers
-                </span>
-                <span className="flex items-center gap-1">
-                  <Folder className="h-3 w-3" />
-                  {folder.subfolderCount} dossiers
-                </span>
-                <span className="flex items-center gap-1">
-                  <HardDrive className="h-3 w-3" />
-                  {folder.formattedSize}
-                </span>
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                style={{ 
+                  backgroundColor: folder.color || '#3B82F6',
+                  color: 'white'
+                }}
+              >
+                <Folder className="h-5 w-5" />
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium">{folder.name}</h3>
+                  {folder.isFavorite && (
+                    <Heart className="h-4 w-4 text-red-500 fill-current" />
+                  )}
+                </div>
+                
+                {folder.description && (
+                  <p className="text-sm text-gray-600 mt-1">{folder.description}</p>
+                )}
+                
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    {folder.fileCount} fichiers
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Folder className="h-3 w-3" />
+                    {folder.subfolderCount} dossiers
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <HardDrive className="h-3 w-3" />
+                    {folder.formattedSize}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                openEditModal(folder);
-              }}>
-                <Edit className="h-4 w-4 mr-2" />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(folder);
-              }}>
-                <Heart className="h-4 w-4 mr-2" />
-                {folder.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                // For demo, move to root - in real app, show folder selector
-                moveFolder(folder, undefined);
-              }}>
-                <Move className="h-4 w-4 mr-2" />
-                Déplacer vers racine
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                // For demo, copy to same location with new name - in real app, show copy dialog
-                const newName = prompt('Nouveau nom pour la copie:', `${folder.name} (Copie)`);
-                if (newName) {
-                  copyFolder(folder, folder.parentId, newName);
-                }
-              }}>
-                <Copy className="h-4 w-4 mr-2" />
-                Dupliquer
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFolder(folder);
-                }}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardContent>
-    </Card>
-  );
+            {/* Dropdown menu (hidden in selection mode) */}
+            {!isSelectionMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    openEditModal(folder);
+                  }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(folder);
+                  }}>
+                    <Heart className="h-4 w-4 mr-2" />
+                    {folder.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    // For demo, move to root - in real app, show folder selector
+                    moveFolder(folder, undefined);
+                  }}>
+                    <Move className="h-4 w-4 mr-2" />
+                    Déplacer vers racine
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    // For demo, copy to same location with new name - in real app, show copy dialog
+                    const newName = prompt('Nouveau nom pour la copie:', `${folder.name} (Copie)`);
+                    if (newName) {
+                      copyFolder(folder, folder.parentId, newName);
+                    }
+                  }}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Dupliquer
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFolder(folder);
+                    }}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const renderFileCard = (file: any) => (
     <Card key={file.id} className="hover:shadow-sm transition-shadow">
@@ -501,7 +667,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
             <File className="h-5 w-5 text-gray-600" />
           </div>
           <div className="flex-1">
-            <h4 className="font-medium text-sm">{file.fileName}</h4>
+            <h4 className="font-medium text-sm">{file.name || file.originalFileName || file.fileName}</h4>
             <p className="text-xs text-gray-500">
               {file.formattedSize || `${Math.round(file.fileSize / 1024)} KB`}
             </p>
@@ -522,7 +688,22 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                 Télécharger
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => fileService.deleteFile(file.id)}
+                onClick={async () => {
+                  if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
+                    try {
+                      await fileService.deleteFile(file.id);
+                      toast.success('Fichier supprimé avec succès');
+                      // Refresh the current folder to reflect the deletion
+                      if (currentViewFolderId) {
+                        await loadFolderDetails(currentViewFolderId);
+                      } else {
+                        await loadFolderDetails(null);
+                      }
+                    } catch (error) {
+                      toast.error('Erreur lors de la suppression du fichier');
+                    }
+                  }
+                }}
                 className="text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -560,11 +741,35 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         </div>
 
         <div className="flex gap-2">
+          {/* Bulk Selection Toggle */}
+          <Button
+            variant={isSelectionMode ? "default" : "outline"}
+            onClick={() => {
+              setIsSelectionMode(!isSelectionMode);
+              if (isSelectionMode) {
+                clearSelection();
+              }
+            }}
+            className={isSelectionMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+          >
+            {isSelectionMode ? (
+              <>
+                <X className="h-4 w-4 mr-2" />
+                Annuler
+              </>
+            ) : (
+              <>
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Sélectionner
+              </>
+            )}
+          </Button>
+
           {/* Upload Button */}
           <label htmlFor="file-upload">
             <Button 
               className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={isUploading}
+              disabled={isUploading || isSelectionMode}
               asChild
             >
               <span>
@@ -584,7 +789,10 @@ const FolderManager: React.FC<FolderManagerProps> = ({
           {/* Create Folder Button */}
           <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={isSelectionMode}
+              >
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Nouveau dossier
               </Button>
@@ -727,6 +935,72 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       {/* Folder and file list */}
       {!searchQuery.trim() && (
         <div className="space-y-6">
+          {/* Bulk Actions Toolbar */}
+          {isSelectionMode && selectedFolders.size > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''} sélectionné{selectedFolders.size > 1 ? 's' : ''}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllFolders}
+                    className="text-xs"
+                  >
+                    Tout sélectionner
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="text-xs"
+                  >
+                    Tout désélectionner
+                  </Button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startBulkOperation('move')}
+                    disabled={bulkLoading}
+                    className="text-sm"
+                  >
+                    <Move className="h-4 w-4 mr-1" />
+                    Déplacer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startBulkOperation('copy')}
+                    disabled={bulkLoading}
+                    className="text-sm"
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copier
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={executeBulkDelete}
+                    disabled={bulkLoading}
+                    className="text-sm"
+                  >
+                    {bulkLoading ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-1" />
+                    )}
+                    Supprimer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <h2 className="text-lg font-semibold">
             {currentFolder ? `Contenu de "${currentFolder.name}"` : 'Dossiers racine'}
             ({currentFolder ? (currentFolder.subfolders?.length || 0) + (currentFolder.files?.length || 0) : folders.length})
@@ -815,6 +1089,63 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                 Sauvegarder
               </Button>
               <Button variant="outline" onClick={() => setShowEditModal(false)}>
+                Annuler
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Destination Selection Modal */}
+      <Dialog open={showDestinationModal} onOpenChange={setShowDestinationModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bulkOperation === 'move' ? 'Déplacer' : 'Copier'} les dossiers sélectionnés
+            </DialogTitle>
+            <DialogDescription>
+              Choisissez la destination pour {selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => executeBulkOperation(null)}
+                disabled={bulkLoading}
+                className="w-full justify-start"
+              >
+                <Folder className="h-4 w-4 mr-2" />
+                Racine
+              </Button>
+              
+              {folders
+                .filter(folder => !selectedFolders.has(folder.id))
+                .map(folder => (
+                  <Button
+                    key={folder.id}
+                    variant="outline"
+                    onClick={() => executeBulkOperation(folder.id)}
+                    disabled={bulkLoading}
+                    className="w-full justify-start"
+                  >
+                    <div 
+                      className="w-4 h-4 rounded mr-2"
+                      style={{ backgroundColor: folder.color || '#3B82F6' }}
+                    />
+                    {folder.name}
+                  </Button>
+                ))}
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowDestinationModal(false)}
+                disabled={bulkLoading}
+                className="flex-1"
+              >
                 Annuler
               </Button>
             </div>
