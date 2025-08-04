@@ -17,6 +17,7 @@ import {
 import { useFileStore } from '../store/fileStore';
 import { NotificationsDropdown } from './NotificationsDropdown';
 import { useAuthStore } from '@/store/authStore';
+import { connectWebSocket, disconnectWebSocket, stompClient } from '@/utils/WebSocket';
 
 const Topbar = () => {
   const [searchFocused, setSearchFocused] = useState(false);
@@ -25,7 +26,7 @@ const Topbar = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const topbarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user,isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     if (topbarRef.current) {
@@ -37,6 +38,18 @@ const Topbar = () => {
     }
   }, []);
 
+  // useEffect(()=>{
+  //   if(isAuthenticated){
+  //     connectWebSocket((msg: any) => {
+  //       console.log('[Message Received]:', msg);
+  //     });
+  //   }
+  //   else{
+  //     disconnectWebSocket();
+  //   }
+  // },[isAuthenticated])
+
+  
   useEffect(() => {
     if (searchRef.current) {
       const scale = searchFocused ? 1.02 : 1;

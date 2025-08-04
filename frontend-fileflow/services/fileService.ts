@@ -162,7 +162,8 @@ export const fileService = {
         params:{response:shareresponse,},
       }
     );
-    if (response.status==200) return response.data.data;
+    
+    if (response.status==200) return response.data;
     throw new Error(response.data.message);
   },
   async getFileUsersEmails(fileId: number): Promise<string[]> {

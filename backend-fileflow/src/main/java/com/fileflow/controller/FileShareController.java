@@ -2,13 +2,16 @@ package com.fileflow.controller;
 
 
 import com.fileflow.dto.FileDTO;
+import com.fileflow.dto.FileShareDTO;
 import com.fileflow.dto.ShareNotificationDTO;
+import com.fileflow.entity.FileShare;
 import com.fileflow.exception.ShareFileException;
 import com.fileflow.exception.UserNotFoundException;
 import com.fileflow.service.FileShareService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.FileNotFoundException;
@@ -20,11 +23,13 @@ import java.util.List;
 @AllArgsConstructor
 public class FileShareController {
     private FileShareService fileShareService;
+    private final SimpMessagingTemplate messagingTemplate;
     @PostMapping("/share/{fileId}")
     public ResponseEntity<String> shareFile(@PathVariable Long fileId, @RequestParam String userEmail) throws UserNotFoundException, FileNotFoundException, IOException {
 
+        ShareNotificationDTO fileShare;
         try {
-            fileShareService.shareFileWithUser(fileId,userEmail);
+            fileShare = fileShareService.shareFileWithUser(fileId, userEmail);
         } catch (UserNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         } catch (FileNotFoundException e) {
@@ -32,6 +37,12 @@ public class FileShareController {
         } catch (IOException e) {
             return ResponseEntity.badRequest().build();
         }
+
+        messagingTemplate.convertAndSendToUser(
+                userEmail,
+                "/queue/notify",
+                fileShare
+        );
         return ResponseEntity.ok().build();
     }
 
@@ -48,14 +59,14 @@ public class FileShareController {
 
     @PostMapping("/share/response/{shareFileId}")
     public ResponseEntity<?> shareResponse(@PathVariable Long shareFileId,@RequestParam boolean response){
-
+            FileDTO fileDTO;
         try {
-            fileShareService.shareResponse(shareFileId,response);
+           fileDTO = fileShareService.shareResponse(shareFileId,response);
         } catch (ShareFileException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("this file was not found");
         }
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok().body(fileDTO);
     }
 
     @GetMapping("/shared/{fileId}/with")

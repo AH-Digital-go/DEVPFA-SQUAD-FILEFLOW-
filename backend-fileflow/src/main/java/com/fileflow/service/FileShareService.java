@@ -1,7 +1,6 @@
 package com.fileflow.service;
 
 import com.fileflow.dto.FileDTO;
-import com.fileflow.dto.FileShareDTO;
 import com.fileflow.dto.ShareNotificationDTO;
 import com.fileflow.entity.File;
 import com.fileflow.entity.FileShare;
@@ -22,7 +21,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -33,17 +31,17 @@ public class FileShareService implements IFileShareServices {
     private FileRepository fileRepository;
     private FileShareRepository fileShareRepository;
     @Override
-    public void shareFileWithUser(Long fileId, String userEmail) throws UserNotFoundException, FileNotFoundException, IOException {
+    public ShareNotificationDTO shareFileWithUser(Long fileId, String userEmail) throws UserNotFoundException, FileNotFoundException, IOException {
         User user = userRepository.findByEmail(userEmail).orElseThrow(()->new UserNotFoundException("this email does not exist"));
         File fileToShare = fileRepository.findById(fileId).orElseThrow(()->new FileNotFoundException("file not found"));
 
-        FileShare shareFile = FileShare.builder()
+        FileShare fileShare = FileShare.builder()
                 .file(fileToShare)
                 .targetUser(user)
                 .response(false)
                 .build();
-        fileShareRepository.save(shareFile);
-
+        fileShareRepository.save(fileShare);
+        return ConvertToDTO(fileShare);
     }
 
     @Override
@@ -61,7 +59,7 @@ public class FileShareService implements IFileShareServices {
     }
 
     @Override
-    public void shareResponse(Long sharefileId,boolean response)throws ShareFileException {
+    public FileDTO shareResponse(Long sharefileId, boolean response)throws ShareFileException {
         FileShare fileShare = fileShareRepository.findById(sharefileId).orElseThrow(()->new ShareFileException(""));
         if(response){
             fileShare.setResponse(true);
@@ -77,11 +75,13 @@ public class FileShareService implements IFileShareServices {
                     .user(fileShare.getTargetUser())
                     .build();
             fileShareRepository.save(fileShare);
-            fileRepository.save(file);
+            File fileToReturn = fileRepository.save(file);
+            return fileService.convertToDTO(fileToReturn);
         }
         else{
             fileShareRepository.delete(fileShare);
         }
+        return null;
     }
 
     public List<ShareNotificationDTO> getShareRequests(Long userId){
