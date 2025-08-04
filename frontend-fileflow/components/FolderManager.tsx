@@ -397,8 +397,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   };
 
   const startBulkOperation = (operation: 'move' | 'copy') => {
-    if (selectedFolders.size === 0) {
-      toast.error('Aucun dossier sélectionné');
+    if (selectedFolders.size === 0 && selectedFiles.size === 0) {
+      toast.error('Aucun élément sélectionné');
       return;
     }
     setBulkOperation(operation);
