@@ -180,4 +180,70 @@ public class FileController {
                 .body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @PutMapping("/bulk/move")
+    @Operation(summary = "Move multiple files to a folder")
+    public ResponseEntity<ApiResponse<String>> bulkMoveFiles(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            @SuppressWarnings("unchecked")
+            List<Integer> fileIds = (List<Integer>) request.get("fileIds");
+            Integer destinationFolderId = (Integer) request.get("destinationFolderId");
+            
+            if (fileIds == null || fileIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("File IDs are required"));
+            }
+            
+            // Convert Integer list to Long list
+            List<Long> longFileIds = fileIds.stream()
+                .map(Integer::longValue)
+                .toList();
+            
+            Long destinationId = destinationFolderId != null ? destinationFolderId.longValue() : null;
+            
+            fileService.bulkMoveFiles(longFileIds, destinationId, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success(
+                fileIds.size() + " files moved successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/bulk/copy")
+    @Operation(summary = "Copy multiple files to a folder")
+    public ResponseEntity<ApiResponse<String>> bulkCopyFiles(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            @SuppressWarnings("unchecked")
+            List<Integer> fileIds = (List<Integer>) request.get("fileIds");
+            Integer destinationFolderId = (Integer) request.get("destinationFolderId");
+            
+            if (fileIds == null || fileIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("File IDs are required"));
+            }
+            
+            // Convert Integer list to Long list
+            List<Long> longFileIds = fileIds.stream()
+                .map(Integer::longValue)
+                .toList();
+            
+            Long destinationId = destinationFolderId != null ? destinationFolderId.longValue() : null;
+            
+            fileService.bulkCopyFiles(longFileIds, destinationId, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success(
+                fileIds.size() + " files copied successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
 }

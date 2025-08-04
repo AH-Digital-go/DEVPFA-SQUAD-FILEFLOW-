@@ -28,7 +28,8 @@ import {
   Square,
   X,
   Check,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -67,6 +68,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   
   // Bulk selection states
   const [selectedFolders, setSelectedFolders] = useState<Set<number>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [bulkOperation, setBulkOperation] = useState<'move' | 'copy' | null>(null);
@@ -349,13 +351,49 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   };
 
   const selectAllFolders = () => {
-    const allFolderIds = new Set(folders.map(folder => folder.id));
+    // Get folders based on current context
+    const availableFolders = currentFolder ? (currentFolder.subfolders || []) : folders;
+    const allFolderIds = new Set(availableFolders.map(folder => folder.id));
     setSelectedFolders(allFolderIds);
+  };
+
+  const selectAllFiles = () => {
+    // Files are only available when inside a folder
+    if (currentFolder?.files) {
+      const allFileIds = new Set(currentFolder.files.map(file => file.id));
+      setSelectedFiles(allFileIds);
+    }
   };
 
   const clearSelection = () => {
     setSelectedFolders(new Set());
+    setSelectedFiles(new Set());
     setIsSelectionMode(false);
+  };
+
+  // File selection functions
+  const toggleFileSelection = (fileId: number) => {
+    const newSelection = new Set(selectedFiles);
+    if (newSelection.has(fileId)) {
+      newSelection.delete(fileId);
+    } else {
+      newSelection.add(fileId);
+    }
+    setSelectedFiles(newSelection);
+  };
+
+  const selectAllItems = () => {
+    // Select all folders (always available)
+    selectAllFolders();
+    
+    // Select all files (only available when inside a folder)
+    if (currentFolder?.files && currentFolder.files.length > 0) {
+      selectAllFiles();
+    }
+  };
+
+  const getSelectedItemsCount = () => {
+    return selectedFolders.size + selectedFiles.size;
   };
 
   const startBulkOperation = (operation: 'move' | 'copy') => {
@@ -400,6 +438,56 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     }
   };
 
+  const executeUnifiedBulkOperation = async (destinationFolderId: number | null) => {
+    if (!bulkOperation) return;
+
+    setBulkLoading(true);
+    try {
+      // Handle folder operations
+      if (selectedFolders.size > 0) {
+        const folderIds = Array.from(selectedFolders);
+        let result;
+
+        if (bulkOperation === 'move') {
+          result = await fileService.bulkMoveFolder(folderIds, destinationFolderId);
+          toast.success(`${result.length} dossier(s) déplacé(s) avec succès`);
+        } else if (bulkOperation === 'copy') {
+          result = await fileService.bulkCopyFolder(folderIds, destinationFolderId);
+          toast.success(`${result.length} dossier(s) copié(s) avec succès`);
+        }
+      }
+
+      // Handle file operations
+      if (selectedFiles.size > 0) {
+        const fileIds = Array.from(selectedFiles);
+        
+        if (bulkOperation === 'move') {
+          await fileService.bulkMoveFiles(fileIds, destinationFolderId);
+          toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's déplacés' : ' déplacé'} avec succès`);
+        } else if (bulkOperation === 'copy') {
+          await fileService.bulkCopyFiles(fileIds, destinationFolderId);
+          toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's copiés' : ' copié'} avec succès`);
+        }
+      }
+
+      // Refresh current view
+      if (currentViewFolderId) {
+        await loadFolderDetails(currentViewFolderId);
+      } else {
+        await loadFolders();
+      }
+
+      clearSelection();
+      setShowDestinationModal(false);
+      setBulkOperation(null);
+    } catch (error) {
+      toast.error(`Erreur lors de l'opération en lot`);
+      console.error('Bulk operation error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const executeBulkOperation = async (destinationFolderId: number | null) => {
     if (selectedFolders.size === 0 || !bulkOperation) return;
 
@@ -429,6 +517,105 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     } catch (error) {
       toast.error(`Erreur lors de l'opération en lot`);
       console.error('Bulk operation error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Bulk file operations
+  const executeBulkDeleteFiles = async () => {
+    if (selectedFiles.size === 0) {
+      toast.error('Aucun fichier sélectionné');
+      return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's' : ''} ?`)) {
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const fileIds = Array.from(selectedFiles);
+      
+      // Delete files one by one (could be optimized with bulk API)
+      for (const fileId of fileIds) {
+        await fileService.deleteFile(fileId);
+      }
+
+      toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's supprimés' : ' supprimé'} avec succès`);
+      
+      // Refresh current folder
+      if (currentViewFolderId) {
+        await loadFolderDetails(currentViewFolderId);
+      } else {
+        await loadFolderDetails(null);
+      }
+
+      clearSelection();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression des fichiers');
+      console.error('Bulk file delete error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const executeBulkDownloadFiles = async () => {
+    if (selectedFiles.size === 0) {
+      toast.error('Aucun fichier sélectionné');
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const files = currentFolder?.files?.filter(file => selectedFiles.has(file.id)) || [];
+      
+      for (const file of files) {
+        if (file.fileName) {
+          await fileService.downloadFile(file.id, file.fileName);
+          // Small delay between downloads to avoid overwhelming the browser
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's téléchargés' : ' téléchargé'} avec succès`);
+      clearSelection();
+    } catch (error) {
+      toast.error('Erreur lors du téléchargement des fichiers');
+      console.error('Bulk file download error:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const executeBulkFileOperation = async (destinationFolderId: number | null) => {
+    if (selectedFiles.size === 0 || !bulkOperation) return;
+
+    setBulkLoading(true);
+    try {
+      const fileIds = Array.from(selectedFiles);
+      
+      if (bulkOperation === 'move') {
+        await fileService.bulkMoveFiles(fileIds, destinationFolderId);
+        toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's déplacés' : ' déplacé'} avec succès`);
+      } else if (bulkOperation === 'copy') {
+        await fileService.bulkCopyFiles(fileIds, destinationFolderId);
+        toast.success(`${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's copiés' : ' copié'} avec succès`);
+      }
+
+      // Refresh current folder
+      if (currentViewFolderId) {
+        await loadFolderDetails(currentViewFolderId);
+      } else {
+        await loadFolders();
+      }
+
+      clearSelection();
+      setShowDestinationModal(false);
+      setBulkOperation(null);
+    } catch (error) {
+      toast.error(`Erreur lors de l'opération sur les fichiers`);
+      console.error('Bulk file operation error:', error);
     } finally {
       setBulkLoading(false);
     }
@@ -659,62 +846,100 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     );
   };
 
-  const renderFileCard = (file: any) => (
-    <Card key={file.id} className="hover:shadow-sm transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-            <File className="h-5 w-5 text-gray-600" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-sm">{file.name || file.originalFileName || file.fileName}</h4>
-            <p className="text-xs text-gray-500">
-              {file.formattedSize || `${Math.round(file.fileSize / 1024)} KB`}
-            </p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
-                if (file.fileName) {
-                  fileService.downloadFile(file.id, file.fileName);
-                }
-              }}>
-                <FileText className="h-4 w-4 mr-2" />
-                Télécharger
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={async () => {
-                  if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
-                    try {
-                      await fileService.deleteFile(file.id);
-                      toast.success('Fichier supprimé avec succès');
-                      // Refresh the current folder to reflect the deletion
-                      if (currentViewFolderId) {
-                        await loadFolderDetails(currentViewFolderId);
-                      } else {
-                        await loadFolderDetails(null);
-                      }
-                    } catch (error) {
-                      toast.error('Erreur lors de la suppression du fichier');
-                    }
-                  }
+  const renderFileCard = (file: any) => {
+    const isSelected = selectedFiles.has(file.id);
+    
+    return (
+      <Card 
+        key={file.id} 
+        className={`transition-all ${
+          isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'hover:shadow-sm'
+        } ${isSelectionMode ? 'select-none' : ''}`}
+        onClick={(e) => {
+          if (isSelectionMode) {
+            e.stopPropagation();
+            toggleFileSelection(file.id);
+          }
+        }}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            {/* Selection checkbox (visible in selection mode) */}
+            {isSelectionMode && (
+              <div 
+                className="flex items-center justify-center w-6 h-6 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFileSelection(file.id);
                 }}
-                className="text-red-600"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardContent>
-    </Card>
-  );
+                {isSelected ? (
+                  <CheckSquare className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <Square className="h-5 w-5 text-gray-400" />
+                )}
+              </div>
+            )}
+            
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <File className="h-5 w-5 text-gray-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-medium text-sm">{file.name || file.originalFileName || file.fileName}</h4>
+              <p className="text-xs text-gray-500">
+                {file.formattedSize || `${Math.round(file.fileSize / 1024)} KB`}
+              </p>
+            </div>
+            
+            {/* Dropdown menu (hidden in selection mode) */}
+            {!isSelectionMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    if (file.fileName) {
+                      fileService.downloadFile(file.id, file.fileName);
+                    }
+                  }}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Télécharger
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
+                        try {
+                          await fileService.deleteFile(file.id);
+                          toast.success('Fichier supprimé avec succès');
+                          // Refresh the current folder to reflect the deletion
+                          if (currentViewFolderId) {
+                            await loadFolderDetails(currentViewFolderId);
+                          } else {
+                            await loadFolderDetails(null);
+                          }
+                        } catch (error) {
+                          toast.error('Erreur lors de la suppression du fichier');
+                        }
+                      }
+                    }}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
@@ -858,34 +1083,57 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               </div>
 
               {/* Folder Color */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-sm font-medium text-gray-700">
                   Couleur du dossier
                 </Label>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    { color: '#3B82F6', name: 'Bleu' },
-                    { color: '#10B981', name: 'Vert' },
-                    { color: '#F59E0B', name: 'Orange' },
-                    { color: '#EF4444', name: 'Rouge' },
-                    { color: '#8B5CF6', name: 'Violet' },
-                    { color: '#06B6D4', name: 'Cyan' },
-                    { color: '#84CC16', name: 'Lime' },
-                    { color: '#F97316', name: 'Amber' }
-                  ].map((colorOption) => (
-                    <button
-                      key={colorOption.color}
-                      type="button"
-                      onClick={() => setNewFolderColor(colorOption.color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
-                        newFolderColor === colorOption.color
-                          ? 'border-gray-800 scale-110 shadow-lg'
-                          : 'border-gray-300 hover:border-gray-400 hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: colorOption.color }}
-                      title={colorOption.name}
+                <div className="space-y-3">
+                  {/* Preview of selected color */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                    <div 
+                      className="w-8 h-8 rounded-lg shadow-sm border-2 border-white"
+                      style={{ backgroundColor: newFolderColor }}
                     />
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <Folder className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Aperçu: {newFolderName || 'Mon nouveau dossier'}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Color palette */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { color: '#3B82F6', name: 'Bleu océan', light: '#EBF4FF' },
+                      { color: '#10B981', name: 'Vert émeraude', light: '#ECFDF5' },
+                      { color: '#F59E0B', name: 'Orange soleil', light: '#FFFBEB' },
+                      { color: '#EF4444', name: 'Rouge cerise', light: '#FEF2F2' },
+                      { color: '#8B5CF6', name: 'Violet royal', light: '#F5F3FF' },
+                      { color: '#06B6D4', name: 'Cyan tropical', light: '#ECFEFF' },
+                      { color: '#84CC16', name: 'Vert lime', light: '#F7FEE7' },
+                      { color: '#F97316', name: 'Orange vif', light: '#FFF7ED' }
+                    ].map((colorOption) => (
+                      <div key={colorOption.color} className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => setNewFolderColor(colorOption.color)}
+                          className={`w-12 h-12 rounded-xl border-3 transition-all duration-300 mx-auto block ${
+                            newFolderColor === colorOption.color
+                              ? 'border-gray-800 scale-110 shadow-lg ring-2 ring-gray-300'
+                              : 'border-gray-200 hover:border-gray-400 hover:scale-105 shadow-md'
+                          }`}
+                          style={{ backgroundColor: colorOption.color }}
+                          title={colorOption.name}
+                        />
+                        <span className={`text-xs mt-1 block transition-colors ${
+                          newFolderColor === colorOption.color 
+                            ? 'text-gray-900 font-medium' 
+                            : 'text-gray-500'
+                        }`}>
+                          {colorOption.name.split(' ')[0]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -936,67 +1184,124 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       {!searchQuery.trim() && (
         <div className="space-y-6">
           {/* Bulk Actions Toolbar */}
-          {isSelectionMode && selectedFolders.size > 0 && (
+          {isSelectionMode && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-blue-900">
-                    {selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''} sélectionné{selectedFolders.size > 1 ? 's' : ''}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={selectAllFolders}
-                    className="text-xs"
-                  >
-                    Tout sélectionner
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSelection}
-                    className="text-xs"
-                  >
-                    Tout désélectionner
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-blue-900">
+                      {getSelectedItemsCount() > 0 
+                        ? `${getSelectedItemsCount()} élément${getSelectedItemsCount() > 1 ? 's' : ''} sélectionné${getSelectedItemsCount() > 1 ? 's' : ''}`
+                        : 'Mode sélection activé - Cliquez sur les éléments pour les sélectionner'
+                      }
+                    </span>
+                    {selectedFolders.size > 0 && (
+                      <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded">
+                        {selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {selectedFiles.size > 0 && (
+                      <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
+                        {selectedFiles.size} fichier{selectedFiles.size > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllItems}
+                      className="text-xs"
+                    >
+                      Tout sélectionner
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelection}
+                      className="text-xs"
+                    >
+                      {getSelectedItemsCount() > 0 ? 'Tout désélectionner' : 'Annuler'}
+                    </Button>
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startBulkOperation('move')}
-                    disabled={bulkLoading}
-                    className="text-sm"
-                  >
-                    <Move className="h-4 w-4 mr-1" />
-                    Déplacer
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startBulkOperation('copy')}
-                    disabled={bulkLoading}
-                    className="text-sm"
-                  >
-                    <Copy className="h-4 w-4 mr-1" />
-                    Copier
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={executeBulkDelete}
-                    disabled={bulkLoading}
-                    className="text-sm"
-                  >
-                    {bulkLoading ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 mr-1" />
+                {/* Only show action buttons when items are selected */}
+                {getSelectedItemsCount() > 0 && (
+                  <div className="flex items-center gap-2">
+                    {/* Move and Copy operations - show for any selection */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startBulkOperation('move')}
+                      disabled={bulkLoading}
+                      className="text-sm"
+                    >
+                      <Move className="h-4 w-4 mr-1" />
+                      Déplacer
+                      {selectedFolders.size > 0 && selectedFiles.size > 0 ? '' : 
+                       selectedFolders.size > 0 ? ' dossiers' : ' fichiers'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startBulkOperation('copy')}
+                      disabled={bulkLoading}
+                      className="text-sm"
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copier
+                      {selectedFolders.size > 0 && selectedFiles.size > 0 ? '' : 
+                       selectedFolders.size > 0 ? ' dossiers' : ' fichiers'}
+                    </Button>
+                    
+                    {/* File-specific operations */}
+                    {selectedFiles.size > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={executeBulkDownloadFiles}
+                        disabled={bulkLoading}
+                        className="text-sm"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Télécharger fichiers
+                      </Button>
                     )}
-                    Supprimer
-                  </Button>
-                </div>
+                    
+                    {/* Delete operation - show for both folders and files */}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedFolders.size > 0 && selectedFiles.size > 0) {
+                          // Mixed selection - ask user what to delete
+                          const choice = confirm(`Supprimer ${selectedFolders.size} dossier${selectedFolders.size > 1 ? 's' : ''} et ${selectedFiles.size} fichier${selectedFiles.size > 1 ? 's' : ''} ?`);
+                          if (choice) {
+                            Promise.all([
+                              selectedFolders.size > 0 ? executeBulkDelete() : Promise.resolve(),
+                              selectedFiles.size > 0 ? executeBulkDeleteFiles() : Promise.resolve()
+                            ]);
+                          }
+                        } else if (selectedFolders.size > 0) {
+                          executeBulkDelete();
+                        } else if (selectedFiles.size > 0) {
+                          executeBulkDeleteFiles();
+                        }
+                      }}
+                      disabled={bulkLoading}
+                      className="text-sm"
+                    >
+                      {bulkLoading ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-1" />
+                      )}
+                      Supprimer
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1101,10 +1406,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {bulkOperation === 'move' ? 'Déplacer' : 'Copier'} les dossiers sélectionnés
+              {bulkOperation === 'move' ? 'Déplacer' : 'Copier'} les éléments sélectionnés
             </DialogTitle>
             <DialogDescription>
-              Choisissez la destination pour {selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''}.
+              Choisissez la destination pour {getSelectedItemsCount()} élément{getSelectedItemsCount() > 1 ? 's' : ''}.
+              {selectedFolders.size > 0 && (
+                <span className="block text-blue-600">{selectedFolders.size} dossier{selectedFolders.size > 1 ? 's' : ''}</span>
+              )}
+              {selectedFiles.size > 0 && (
+                <span className="block text-green-600">{selectedFiles.size} fichier{selectedFiles.size > 1 ? 's' : ''}</span>
+              )}
             </DialogDescription>
           </DialogHeader>
           
@@ -1112,7 +1423,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
             <div className="space-y-2">
               <Button
                 variant="outline"
-                onClick={() => executeBulkOperation(null)}
+                onClick={() => executeUnifiedBulkOperation(null)}
                 disabled={bulkLoading}
                 className="w-full justify-start"
               >
@@ -1126,7 +1437,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                   <Button
                     key={folder.id}
                     variant="outline"
-                    onClick={() => executeBulkOperation(folder.id)}
+                    onClick={() => executeUnifiedBulkOperation(folder.id)}
                     disabled={bulkLoading}
                     className="w-full justify-start"
                   >

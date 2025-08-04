@@ -296,4 +296,115 @@ public class FileService {
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
+
+    public void bulkMoveFiles(List<Long> fileIds, Long destinationFolderId, Long userId) {
+        // Validate all files belong to user
+        List<File> files = fileRepository.findAllById(fileIds);
+        for (File file : files) {
+            if (!file.getUser().getId().equals(userId)) {
+                throw new RuntimeException("File with id " + file.getId() + " does not belong to user");
+            }
+        }
+
+        // Get destination folder if specified
+        Folder destinationFolder = null;
+        if (destinationFolderId != null) {
+            destinationFolder = folderRepository.findByIdAndUserId(destinationFolderId, userId)
+                .orElseThrow(() -> new RuntimeException("Destination folder not found"));
+        }
+
+        // Move files to destination folder
+        for (File file : files) {
+            file.setFolder(destinationFolder);
+            fileRepository.save(file);
+
+            // Move physical file if needed
+            try {
+                movePhysicalFile(file, destinationFolder);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to move physical file: " + e.getMessage());
+            }
+        }
+    }
+
+    public void bulkCopyFiles(List<Long> fileIds, Long destinationFolderId, Long userId) {
+        // Validate all files belong to user
+        List<File> files = fileRepository.findAllById(fileIds);
+        for (File file : files) {
+            if (!file.getUser().getId().equals(userId)) {
+                throw new RuntimeException("File with id " + file.getId() + " does not belong to user");
+            }
+        }
+
+        // Get destination folder if specified
+        Folder destinationFolder = null;
+        if (destinationFolderId != null) {
+            destinationFolder = folderRepository.findByIdAndUserId(destinationFolderId, userId)
+                .orElseThrow(() -> new RuntimeException("Destination folder not found"));
+        }
+
+        // Copy files to destination folder
+        for (File file : files) {
+            try {
+                copyFile(file, destinationFolder);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to copy file: " + e.getMessage());
+            }
+        }
+    }
+
+    private void movePhysicalFile(File file, Folder destinationFolder) throws IOException {
+        Path oldPath = Paths.get(fileStorageConfig.getUploadDir(), String.valueOf(file.getUser().getId()), file.getFileName());
+        
+        String newFolderPath = destinationFolder != null ? 
+            String.valueOf(destinationFolder.getId()) : String.valueOf(file.getUser().getId());
+        Path newPath = Paths.get(fileStorageConfig.getUploadDir(), newFolderPath, file.getFileName());
+        
+        // Create destination directory if it doesn't exist
+        Files.createDirectories(newPath.getParent());
+        
+        // Move the file
+        Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void copyFile(File originalFile, Folder destinationFolder) throws IOException {
+        // Create new file entity
+        File copiedFile = new File();
+        copiedFile.setOriginalFileName(originalFile.getOriginalFileName());
+        copiedFile.setFileName(generateUniqueFileName(originalFile.getOriginalFileName()));
+        copiedFile.setFileSize(originalFile.getFileSize());
+        copiedFile.setContentType(originalFile.getContentType());
+        copiedFile.setUser(originalFile.getUser());
+        copiedFile.setFolder(destinationFolder);
+        // createdAt and updatedAt will be set automatically by @CreationTimestamp and @UpdateTimestamp
+
+        // Save new file entity
+        copiedFile = fileRepository.save(copiedFile);
+
+        // Copy physical file
+        Path sourcePath = Paths.get(fileStorageConfig.getUploadDir(), String.valueOf(originalFile.getUser().getId()), originalFile.getFileName());
+        
+        String destinationFolderPath = destinationFolder != null ? 
+            String.valueOf(destinationFolder.getId()) : String.valueOf(originalFile.getUser().getId());
+        Path destinationPath = Paths.get(fileStorageConfig.getUploadDir(), destinationFolderPath, copiedFile.getFileName());
+        
+        // Create destination directory if it doesn't exist
+        Files.createDirectories(destinationPath.getParent());
+        
+        // Copy the file
+        Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private String generateUniqueFileName(String originalFileName) {
+        String extension = "";
+        String nameWithoutExtension = originalFileName;
+        
+        int lastDotIndex = originalFileName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            extension = originalFileName.substring(lastDotIndex);
+            nameWithoutExtension = originalFileName.substring(0, lastDotIndex);
+        }
+        
+        return nameWithoutExtension + "_copy_" + System.currentTimeMillis() + extension;
+    }
 }

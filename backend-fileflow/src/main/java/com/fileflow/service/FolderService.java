@@ -36,7 +36,7 @@ public class FolderService {
         this.fileRepository = fileRepository;
     }
 
-    public FolderDTO createFolder(String name, Long parentId, Long userId) {
+    public FolderDTO createFolder(String name, Long parentId, Long userId, String description, String color) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -54,6 +54,14 @@ public class FolderService {
         Folder folder = new Folder();
         folder.setName(name);
         folder.setUser(user);
+        
+        // Set description and color if provided
+        if (description != null && !description.trim().isEmpty()) {
+            folder.setDescription(description.trim());
+        }
+        if (color != null && !color.trim().isEmpty()) {
+            folder.setColor(color.trim());
+        }
 
         if (parentId != null) {
             Folder parent = folderRepository.findByIdAndUserId(parentId, userId)

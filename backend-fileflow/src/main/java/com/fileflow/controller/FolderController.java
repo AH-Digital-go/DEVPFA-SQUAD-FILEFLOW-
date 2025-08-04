@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,6 +33,8 @@ public class FolderController {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             
             String name = (String) request.get("name");
+            String description = (String) request.get("description");
+            String color = (String) request.get("color");
             Long parentId = request.get("parentId") != null ? 
                 Long.valueOf(request.get("parentId").toString()) : null;
             
@@ -42,7 +43,7 @@ public class FolderController {
                     .body(ApiResponse.error("Folder name is required"));
             }
             
-            FolderDTO folder = folderService.createFolder(name.trim(), parentId, userDetails.getId());
+            FolderDTO folder = folderService.createFolder(name.trim(), parentId, userDetails.getId(), description, color);
             return ResponseEntity.ok(ApiResponse.success("Folder created successfully", folder));
         } catch (Exception e) {
             return ResponseEntity.badRequest()

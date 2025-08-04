@@ -274,6 +274,25 @@ export const fileService = {
     if (response.data.success) return response.data.data;
     throw new Error(response.data.message);
   },
+
+  // Bulk file operations
+  async bulkMoveFiles(fileIds: number[], destinationFolderId: number | null): Promise<string> {
+    const response = await fileAPI.put<ApiResponse<string>>('/bulk/move', {
+      fileIds,
+      destinationFolderId
+    });
+    if (response.data.success) return response.data.message;
+    throw new Error(response.data.message);
+  },
+
+  async bulkCopyFiles(fileIds: number[], destinationFolderId: number | null): Promise<string> {
+    const response = await fileAPI.post<ApiResponse<string>>('/bulk/copy', {
+      fileIds,
+      destinationFolderId
+    });
+    if (response.data.success) return response.data.message;
+    throw new Error(response.data.message);
+  },
 };
 
 // Export types for easier imports
