@@ -163,9 +163,8 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
       file.fileUsersEmails.push(userEmail);
       console.log(file.fileUsersEmails);
       toast.success("file shared successfully");
-    } catch (error) {
-
-      toast.error(error.response.data);
+    } catch (error: any) {
+      toast.error(error.response?.data || 'Failed to share file');
     }
 
   }

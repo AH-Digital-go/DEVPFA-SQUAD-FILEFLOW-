@@ -171,10 +171,6 @@ public class FileService {
         }
         renameFileAndCopies(file,newName);
 
-<<<<<<< HEAD
-        file.setOriginalFileName(newName);
-=======
->>>>>>> origin/feature/version1.0.3
         File savedFile = fileRepository.save(file);
         return convertToDTO(savedFile);
     }

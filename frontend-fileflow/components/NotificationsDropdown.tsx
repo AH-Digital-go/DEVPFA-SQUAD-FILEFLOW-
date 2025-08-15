@@ -4,7 +4,7 @@ import { NotificationItem } from "./NotificationItem";
 import { useEffect, useState } from "react";
 import { fileService } from "@/services/fileService";
 import { toast } from "react-toastify";
-import { FileMetadata, shareNotification } from "@/types/types";
+import { FileDTO, shareNotification } from "@/types/types";
 import { connectWebSocket, stompClient } from "@/utils/WebSocket";
 import { FileItem, useFileStore } from "@/store/fileStore";
 
@@ -28,7 +28,7 @@ export function NotificationsDropdown({
 
     const handleResponse = async (id: number, response: boolean) => {
         try {
-            const file = await fileService.shareResponse(id, response) as FileMetadata;
+            const file = await fileService.shareResponse(id, response) as FileDTO;
             console.log(file);
             const fileItem = {
                 id: file.id.toString(), // Convertir number en string si nécessaire

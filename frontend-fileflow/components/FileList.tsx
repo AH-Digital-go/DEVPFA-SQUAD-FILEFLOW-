@@ -91,6 +91,7 @@ const FileList = () => {
         originalFileName: file.originalFileName,
         type: file.contentType,
         size: file.fileSize,
+        fileUsersEmails: file.fileUsersEmails || [],
         createdAt: file.createdAt,
         updatedAt: file.updatedAt,
         isFavorite: file.isFavorite,

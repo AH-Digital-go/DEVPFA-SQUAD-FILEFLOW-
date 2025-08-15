@@ -15,6 +15,7 @@ export const useUpload = () => {
     originalFileName: fileDto.originalFileName,
     type: fileDto.contentType,
     size: fileDto.fileSize,
+    fileUsersEmails: fileDto.fileUsersEmails || [],
     createdAt: fileDto.createdAt,
     updatedAt: fileDto.updatedAt,
     isFavorite: fileDto.isFavorite,

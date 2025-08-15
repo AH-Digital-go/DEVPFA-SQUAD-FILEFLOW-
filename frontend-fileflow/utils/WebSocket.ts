@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store/authStore";
 import { shareNotification } from "@/types/types";
 import { Client, IMessage } from "@stomp/stompjs";
+import React from "react";
 import SockJS from "sockjs-client";
 
 const SOCKET_URL = 'http://localhost:8088/ws';
@@ -16,7 +17,7 @@ export const stompClient = new Client({
 
 
 
-export const connectWebSocket = (setNewNotification: (newNotification: shareNotification[]) => void, setNotesNumber: (noteNumber: number) => void): void => {
+export const connectWebSocket = (setNewNotification: React.Dispatch<React.SetStateAction<shareNotification[]>>, setNotesNumber: React.Dispatch<React.SetStateAction<number>>): void => {
 
     stompClient.onConnect = () => {
         console.log("[WEBSOCKET] Connected");
@@ -24,11 +25,12 @@ export const connectWebSocket = (setNewNotification: (newNotification: shareNoti
         stompClient?.subscribe("/user/queue/notify", (message: IMessage) => {
             console.log("notification received: ", message);
             const body = JSON.parse(message.body);
-            setNewNotification(prev => {
-                const exists = prev.some((item: { id: any; }) => item.id === body.id); // or any unique field
+            setNewNotification((prev: shareNotification[]) => {
+                const exists = prev.some((item: shareNotification) => item.id === body.id); // or any unique field
                 if (!exists) {
                     return [...prev, body];
                 }
+                return prev; // Return prev if exists
             });
             setNotesNumber((prev: number) => prev + 1)
             console.log(body);
@@ -40,11 +42,11 @@ export const connectWebSocket = (setNewNotification: (newNotification: shareNoti
         });
     };
 
-    stompClient.onWebSocketError = (error) => {
+    stompClient.onWebSocketError = (error: any) => {
         console.error('Error with websocket', error);
     };
 
-    stompClient.onStompError = (frame) => {
+    stompClient.onStompError = (frame: any) => {
         console.error('Broker reported error: ' + frame.headers['message']);
         console.error('Additional details: ' + frame.body);
     };

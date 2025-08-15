@@ -66,7 +66,7 @@ const FileShareModal: React.FC<FileShareModalProps> = ({
         ...(password && { password })
       };
 
-      const newShare = await fileService.shareFile(fileId, shareRequest);
+      const newShare = await fileService.createFileShare(fileId, shareRequest);
       setShares([newShare, ...shares]);
       
       // Reset form

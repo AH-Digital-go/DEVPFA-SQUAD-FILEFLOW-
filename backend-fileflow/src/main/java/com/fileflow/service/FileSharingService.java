@@ -49,7 +49,7 @@ public class FileSharingService {
 
         FileShare fileShare = new FileShare();
         fileShare.setFile(file);
-        fileShare.setUser(user);
+        fileShare.setTargetUser(user);
         fileShare.setShareToken(UUID.randomUUID().toString());
         fileShare.setShareType(shareType != null ? shareType : "public");
         fileShare.setAllowDownload(allowDownload != null ? allowDownload : true);
@@ -101,7 +101,7 @@ public class FileSharingService {
         FileShare share = fileShareRepository.findById(shareId)
             .orElseThrow(() -> new RuntimeException("Share not found"));
 
-        if (!share.getUser().getId().equals(userId)) {
+        if (!share.getTargetUser().getId().equals(userId)) {
             throw new RuntimeException("Access denied");
         }
 

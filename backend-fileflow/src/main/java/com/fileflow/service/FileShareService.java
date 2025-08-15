@@ -49,7 +49,8 @@ public class FileShareService implements IFileShareServices {
         User user = userRepository.findByEmail(userEmail).orElseThrow(()-> new UserNotFoundException("email does not exist"));
         File file = fileRepository.findByUserIdAndOriginalFileId(user.getId(),fileId);
 
-        FileShare fileShare= fileShareRepository.findByFileIdAndTargetUserId(fileId,user.getId());
+        FileShare fileShare = fileShareRepository.findByFileIdAndTargetUserId(fileId, user.getId())
+            .orElseThrow(() -> new RuntimeException("Share not found"));
 
         fileShareRepository.delete(fileShare);
         if(file!=null) {

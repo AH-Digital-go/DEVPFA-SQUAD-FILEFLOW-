@@ -155,6 +155,12 @@ export const fileService = {
     throw new Error(response.data.message);
   },
 
+  async createFileShare(fileId: number, shareRequest: ShareFileRequest): Promise<FileShare> {
+    const response = await sharingAPI.post<ApiResponse<FileShare>>(`/${fileId}/share`, shareRequest);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
   async getShareNotfications(userId:number):Promise<shareNotification[]>{
     const response = await sharingAPI.get("/share/requests",{
       params:{userId,},

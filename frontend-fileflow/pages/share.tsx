@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Heart, Files, Share2 } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { fileService } from '../services/fileService';
-import { FileMetadata } from '@/types/types';
+import { FileDTO } from '@/types/types';
 import FileCard from '../components/FileCard';
 import AnimatedLoader from '../components/AnimatedLoader';
 import { useAuthStore } from '@/store/authStore';
@@ -39,19 +39,17 @@ const FavouritesPage = () => {
             sharedFiles = await fileService.getSharedFilesWithMe(Number(user?.id));
       }
       
-      // Mapper FileMetadata vers FileItem si nécessaire
-      const mappedsharedfiles = sharedFiles.map((file: FileMetadata) => ({
+      // Mapper FileDTO vers FileItem si nécessaire
+      const mappedsharedfiles = sharedFiles.map((file: FileDTO) => ({
         id: file.id.toString(), // Convertir number en string si nécessaire
         name: file.originalFileName,
-        originalName: file.originalFileName,
+        originalFileName: file.originalFileName,
         type: file.contentType,
         size: file.fileSize,
-        uuid: file.fileUuid,
+        fileUsersEmails: file.fileUsersEmails || [],
         isFavorite: file.isFavorite,
         createdAt: file.createdAt,
         updatedAt: file.updatedAt,
-        extension: file.fileExtension,
-        formattedSize: file.formattedFileSize,
         // Ajoutez d'autres propriétés si nécessaires selon votre interface FileItem
       }));
 
@@ -93,7 +91,7 @@ const FavouritesPage = () => {
         </div>
         <select
               value={shareType}
-              onChange={(e) => setShareType(e.target.value)}
+              onChange={(e) => setShareType(e.target.value as "by" | "with")}
               className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
             >
               {shareTypes.map((type) => (

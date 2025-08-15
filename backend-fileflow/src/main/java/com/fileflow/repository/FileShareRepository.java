@@ -4,10 +4,14 @@ package com.fileflow.repository;
 import com.fileflow.entity.File;
 import com.fileflow.entity.FileShare;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface FileShareRepository extends JpaRepository<FileShare,Long> {
@@ -25,7 +29,7 @@ public interface FileShareRepository extends JpaRepository<FileShare,Long> {
     List<File> findSharedFilesByMe(Long userId);
 
     @Query("Select sh from FileShare sh where sh.file.id = :fileId and sh.targetUser.id = :targetUserId")
-    FileShare findByFileIdAndTargetUserId(Long fileId, Long targetUserId);
+    Optional<FileShare> findByFileIdAndTargetUserId(Long fileId, Long targetUserId);
 
     boolean existsByFileIdAndTargetUserId(Long fileId, Long targetUserId);
 
@@ -35,5 +39,19 @@ public interface FileShareRepository extends JpaRepository<FileShare,Long> {
     List<FileShare> findByFileUserIdAndShareType(Long userId, String shareType);
 
     @Query("SELECT sh FROM FileShare sh WHERE sh.file.id = :fileId AND sh.targetUser.id = :targetUserId AND sh.file.user.id = :ownerId")
-    FileShare findByFileIdAndTargetUserIdAndFileUserId(Long fileId, Long targetUserId, Long ownerId);
+    Optional<FileShare> findByFileIdAndTargetUserIdAndFileUserId(Long fileId, Long targetUserId, Long ownerId);
+
+    // Additional methods for FileSharingService
+    @Query("SELECT sh FROM FileShare sh WHERE sh.file.id = :fileId AND sh.file.user.id = :userId AND sh.isActive = true")
+    List<FileShare> findActiveSharesByFileAndUser(@Param("fileId") Long fileId, @Param("userId") Long userId);
+
+    @Query("SELECT sh FROM FileShare sh WHERE sh.shareToken = :shareToken AND sh.isActive = true AND (sh.expiresAt IS NULL OR sh.expiresAt > :currentTime)")
+    Optional<FileShare> findActiveShareByToken(@Param("shareToken") String shareToken, @Param("currentTime") LocalDateTime currentTime);
+
+    @Modifying
+    @Query("UPDATE FileShare sh SET sh.accessCount = sh.accessCount + 1 WHERE sh.id = :shareId")
+    void incrementAccessCount(@Param("shareId") Long shareId);
+
+    @Query("SELECT sh FROM FileShare sh WHERE sh.file.user.id = :userId ORDER BY sh.createdAt DESC")
+    List<FileShare> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 }
