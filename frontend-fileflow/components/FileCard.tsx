@@ -166,8 +166,8 @@ const FileCard: React.FC<FileCardProps> = ({ file }) => {
   }
   const handleUnshare = async (email:string) => {
     try {
-      await fileService.unshareFile(Number(file.id),email);
       file.fileUsersEmails = file.fileUsersEmails.filter(e=> e !==email);
+      await fileService.unshareFile(Number(file.id),email);
       console.log(file.fileUsersEmails);
       toast.success("share revoked from the user");
     } catch (error) {
