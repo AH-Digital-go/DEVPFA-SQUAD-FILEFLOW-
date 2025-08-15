@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { SendVerificationCodeInput } from '../components/SendVerificationCodeInput';
 import { useVerificationCode } from '@/hooks/useVerificationCode';
 import { toast } from 'react-toastify';
+import { useAuthStore } from '@/store/authStore';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ const RegisterPage = () => {
   const { register, isLoading } = useAuth();
   const formRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
-  
+  const {isRedirecting, setRedirecting} = useAuthStore();
   const {
     codeSent,
     isSendingCode,
@@ -113,6 +114,7 @@ const RegisterPage = () => {
       return;
     }
     try {
+      setRedirecting(true);
       await register({
         email: formData.email,
         password: formData.password,
@@ -121,9 +123,19 @@ const RegisterPage = () => {
         lastName: formData.lastName,
       });
     } catch (error) {
+      setRedirecting(false);
       console.error('Registration failed:', error);
     }
   };
+
+  console.log("isRedirecting 2 : ", isRedirecting);
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">

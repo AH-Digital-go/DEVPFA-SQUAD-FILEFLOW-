@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,14 +24,17 @@ public interface FileRepository extends JpaRepository<File, Long> {
     Optional<File> findByIdAndUserId(Long id, Long userId);
     
     Optional<File> findByFileUuidAndUserId(String fileUuid, Long userId);
+
+    @Query("Select f from File f where f.isShared = true")
+    List<File> getFileSharedWithMe();
     
     boolean existsByFileNameAndUserId(String fileName, Long userId);
     
     @Query("SELECT f FROM File f WHERE f.user.id = :userId AND " +
            "(LOWER(f.fileName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(f.originalFileName) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
-    List<File> searchFilesByUserIdAndName(@Param("userId") Long userId, 
-                                                  @Param("searchTerm") String searchTerm);
+    List<File> searchFilesByUserIdAndName(@Param("userId") Long userId,
+                                          @Param("searchTerm") String searchTerm);
     
     @Query("SELECT COUNT(f) FROM File f WHERE f.user.id = :userId")
     Long countByUserId(@Param("userId") Long userId);
@@ -42,4 +46,6 @@ public interface FileRepository extends JpaRepository<File, Long> {
     List<File> findByUserIdAndOriginalFileNameContainingIgnoreCase(@Param("userId") Long userId, @Param("name") String name);
     
     List<File> findByFolderIdAndUserId(Long folderId, Long userId);
+
+    File findByUserIdAndOriginalFileId(Long userId, Long originalFileId) throws FileNotFoundException;
 }

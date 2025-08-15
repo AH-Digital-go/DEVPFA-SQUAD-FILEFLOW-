@@ -114,6 +114,55 @@ public class FileSharingService {
         return shares.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    // Direct user-to-user sharing methods
+    public void shareFileWithUser(Long fileId, Long userId, String targetEmail) {
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
+            .orElseThrow(() -> new RuntimeException("File not found or access denied"));
+            
+        User targetUser = userRepository.findByEmail(targetEmail)
+            .orElseThrow(() -> new RuntimeException("Target user not found"));
+
+        if (fileShareRepository.existsByFileIdAndTargetUserId(fileId, targetUser.getId())) {
+            throw new RuntimeException("File is already shared with this user");
+        }
+
+        FileShare share = FileShare.builder()
+            .file(file)
+            .targetUser(targetUser)
+            .shareType("direct")
+            .build();
+
+        fileShareRepository.save(share);
+    }
+
+    public boolean respondToShareRequest(Long shareId, boolean accept) {
+        FileShare share = fileShareRepository.findById(shareId)
+            .orElseThrow(() -> new RuntimeException("Share request not found"));
+            
+        share.setResponse(accept);
+        share.setIsActive(accept);
+        fileShareRepository.save(share);
+        return accept;
+    }
+
+    public List<FileShare> getFilesSharedWithMe(Long userId) {
+        return fileShareRepository.findByTargetUserIdAndIsActiveTrue(userId);
+    }
+
+    public List<FileShare> getFilesSharedByMe(Long userId) {
+        return fileShareRepository.findByFileUserIdAndShareType(userId, "direct");
+    }
+
+    public void unshareFileWithUser(Long fileId, String userEmail, Long ownerId) {
+        User targetUser = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        FileShare share = fileShareRepository.findByFileIdAndTargetUserIdAndFileUserId(fileId, targetUser.getId(), ownerId)
+            .orElseThrow(() -> new RuntimeException("Share not found"));
+            
+        fileShareRepository.delete(share);
+    }
+
     private FileShareDTO convertToDTO(FileShare share) {
         FileShareDTO dto = new FileShareDTO();
         dto.setId(share.getId());

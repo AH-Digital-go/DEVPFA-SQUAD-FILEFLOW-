@@ -55,6 +55,8 @@ logging:
   level:
     org.springframework: DEBUG
     com.yourpackage: DEBUG
-
+    root: DEBUG
 email:
-  sender: tinidyoussef2023@gmail.com
+  sender: akharraz2003@gmail.com
+
+

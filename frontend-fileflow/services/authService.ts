@@ -1,6 +1,7 @@
 import { LoginCredentials, AuthResponse, AuthData, RegisterData, UserData, ApiResponse } from '@/types/types';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore, User } from '@/store/authStore';
+import { disconnectWebSocket } from '@/utils/WebSocket';
 
 // Updated to match backend port
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088/api';
@@ -109,7 +110,8 @@ export const authService = {
     if (response.data.success) {
       const { user, accessToken } = response.data.data;
       useAuthStore.getState().login(user, accessToken);
-      return { user , accessToken};
+      
+      return { user, accessToken };
     } else {
       throw new Error(response.data.message);
     }
@@ -129,6 +131,8 @@ export const authService = {
     if (response.data.success) {
       const { user, accessToken } = response.data.data;
       useAuthStore.getState().login(user, accessToken);
+
+      
       return { user, accessToken };
     } else {
       throw new Error(response.data.message);
@@ -151,6 +155,8 @@ export const authService = {
       console.error('Erreur lors de la déconnexion', error);
     } finally {
       useAuthStore.getState().logout();
+
+      disconnectWebSocket();
     }
   },
 

@@ -37,6 +37,15 @@ export const userService = {
     }
   },
 
+  async  deleteAccountRequest(): Promise<ApiResponse<null>> {
+    try {
+      const res = await userAPI.delete<ApiResponse<null>>('/me/delete');
+      return res.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to delete account');
+    }
+  },
+
   async updateUserProfile(data: UserUpdateRequest): Promise<UserData> {
     
     const response = await userAPI.patch<ApiResponse<UserData>>('/update', data);

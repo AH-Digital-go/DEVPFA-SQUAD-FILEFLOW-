@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   LogOut,
+  Share,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,6 +24,7 @@ const menuItems = [
   { href: '/files', icon: Files, label: 'Mes fichiers' },
   { href: '/files/upload', icon: Upload, label: 'Téléverser' },
   { href: '/favourites', icon: Heart, label: 'Favoris' },
+  { href: '/share', icon: Share, label: 'Partages' },
   { href: '/profile', icon: User, label: 'Profil' },
   { href: '/settings', icon: Settings, label: 'Paramètres' },
 ];

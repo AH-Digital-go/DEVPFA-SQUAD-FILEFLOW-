@@ -6,6 +6,7 @@ export interface FileItem {
   originalFileName: string;
   type: string;
   size: number;
+  fileUsersEmails:string[];
   createdAt: string;
   updatedAt: string;
   isFavorite: boolean;

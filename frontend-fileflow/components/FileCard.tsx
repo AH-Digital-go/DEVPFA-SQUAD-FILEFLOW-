@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, number } from 'framer-motion';
 import { gsap } from 'gsap';
 import {
   File,
@@ -16,10 +16,13 @@ import {
   Edit3,
   Trash2,
   Eye,
+  Share2,
 } from 'lucide-react';
 import { FileItem, useFileStore } from '../store/fileStore';
 import { fileService } from '../services/fileService';
 import { toast } from 'react-toastify';
+import { FileDropdownMenu } from './FileDropdownMenu';
+import { ShareDialog } from './ShareDialog';
 
 interface FileCardProps {
   file: FileItem;
@@ -59,11 +62,12 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(file.originalFileName || file.name);
   const [isHovered, setIsHovered] = useState(false);
-  
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+
   const { removeFile, updateFile, toggleFavorite: toggleStoreFavorite } = useFileStore();
   const cardRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  
+
   const FileIcon = getFileIcon(file.type);
   const colorClass = getFileTypeColor(file.type);
 
@@ -99,7 +103,7 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
     if (newName.trim() && newName !== (file.originalFileName || file.name)) {
       try {
         const updatedFile = await fileService.renameFile(Number(file.id), newName.trim());
-        updateFile(file.id, { 
+        updateFile(file.id, {
           name: updatedFile.fileName,
           originalFileName: updatedFile.originalFileName,
           type: updatedFile.contentType,
@@ -152,6 +156,43 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
     setShowMenu(false);
   };
 
+  const handleShare = async (userEmail:string) => {
+    console.log(userEmail);
+    try {
+      await fileService.shareFile(Number(file.id),userEmail);
+      file.fileUsersEmails.push(userEmail);
+      console.log(file.fileUsersEmails);
+      toast.success("file shared successfully");
+    } catch (error) {
+
+      toast.error(error.response.data);
+    }
+
+  }
+  const handleUnshare = async (email:string) => {
+    try {
+      file.fileUsersEmails = file.fileUsersEmails.filter(e=> e !==email);
+      await fileService.unshareFile(Number(file.id),email);
+      console.log(file.fileUsersEmails);
+      toast.success("share revoked from the user");
+    } catch (error) {
+      toast.error("error occured");
+    }
+    
+
+  }
+
+  const handleOpenMenu = async ()=>{
+    
+    try {
+      const emails = await fileService.getFileUsersEmails(Number(file.id));
+      file.fileUsersEmails=emails;
+        
+    } catch (error) {
+      console.log("error occured");
+    }
+  }
+
   const handleToggleFavorite = async () => {
     try {
       await fileService.toggleFavorite(Number(file.id));
@@ -202,7 +243,7 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
             {file.originalFileName || file.name}
           </h3>
         )}
-        
+
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-500">{formatFileSize(file.size)}</span>
           <span className="text-xs text-slate-400">
@@ -226,7 +267,7 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
       </AnimatePresence>
 
       {/* Actions Menu */}
-      <div className="absolute top-4 right-4">
+      {/* <div className="absolute top-4 right-4">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -261,6 +302,14 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
                   <Download className="w-4 h-4 mr-3" />
                   Télécharger
                 </button>
+
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <Share2 className="w-4 h-4 mr-3" />
+                  partager
+                </button>
                 
                 <button
                   onClick={handleToggleFavorite}
@@ -283,7 +332,23 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRefresh }) => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div> */}
+      <FileDropdownMenu
+        onRename={() => setIsRenaming(true)}
+        onDownload={handleDownload}
+        onShare={() => { setIsShareDialogOpen(true) }}
+        onToggleFavorite={handleToggleFavorite}
+        onDelete={handleDelete}
+        isFavorite={file.isFavorite}
+        onOpenChange={handleOpenMenu}
+      />
+      <ShareDialog
+            onShare={handleShare}
+            onUnshare={handleUnshare}
+            sharedWith={file.fileUsersEmails}
+            open={isShareDialogOpen}
+            onOpenChange={setIsShareDialogOpen}
+          />
 
       {/* Hover overlay */}
       <AnimatePresence>

@@ -1,31 +1,39 @@
 package com.fileflow.repository;
 
+
+import com.fileflow.entity.File;
 import com.fileflow.entity.FileShare;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public interface FileShareRepository extends JpaRepository<FileShare, Long> {
-    
-    Optional<FileShare> findByShareToken(String shareToken);
-    
-    List<FileShare> findByFileIdAndUserId(Long fileId, Long userId);
-    
-    List<FileShare> findByUserIdOrderByCreatedAtDesc(Long userId);
-    
-    @Query("SELECT fs FROM FileShare fs WHERE fs.file.id = :fileId AND fs.user.id = :userId AND fs.isActive = true")
-    List<FileShare> findActiveSharesByFileAndUser(@Param("fileId") Long fileId, @Param("userId") Long userId);
-    
-    @Query("SELECT fs FROM FileShare fs WHERE fs.shareToken = :token AND fs.isActive = true AND (fs.expiresAt IS NULL OR fs.expiresAt > :now)")
-    Optional<FileShare> findActiveShareByToken(@Param("token") String token, @Param("now") LocalDateTime now);
-    
-    @Query("UPDATE FileShare fs SET fs.accessCount = fs.accessCount + 1 WHERE fs.id = :shareId")
-    void incrementAccessCount(@Param("shareId") Long shareId);
+public interface FileShareRepository extends JpaRepository<FileShare,Long> {
+
+    @Query("Select sh.targetUser.email from FileShare sh where sh.file.id = :fileId")
+    List<String> getSharedUsersEmailsByFileId(Long fileId);
+
+    @Query("Select sh.file from FileShare sh where sh.targetUser.id = :targetId and sh.response = true")
+    List<File> findByTargetId(Long targetId);
+
+    @Query("select sh from FileShare sh where sh.targetUser.id = :TargetUserId and sh.response = false")
+    List<FileShare> findFileSharesByTargetUserId(Long TargetUserId);
+
+    @Query("Select distinct sh.file from FileShare sh where sh.file.user.id = :userId")
+    List<File> findSharedFilesByMe(Long userId);
+
+    @Query("Select sh from FileShare sh where sh.file.id = :fileId and sh.targetUser.id = :targetUserId")
+    FileShare findByFileIdAndTargetUserId(Long fileId, Long targetUserId);
+
+    boolean existsByFileIdAndTargetUserId(Long fileId, Long targetUserId);
+
+    List<FileShare> findByTargetUserIdAndIsActiveTrue(Long userId);
+
+    @Query("SELECT sh FROM FileShare sh WHERE sh.file.user.id = :userId AND sh.shareType = :shareType")
+    List<FileShare> findByFileUserIdAndShareType(Long userId, String shareType);
+
+    @Query("SELECT sh FROM FileShare sh WHERE sh.file.id = :fileId AND sh.targetUser.id = :targetUserId AND sh.file.user.id = :ownerId")
+    FileShare findByFileIdAndTargetUserIdAndFileUserId(Long fileId, Long targetUserId, Long ownerId);
 }

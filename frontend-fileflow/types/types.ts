@@ -34,7 +34,7 @@ export interface UserData {
 
 export interface AuthData {
   type: string;
-  accessToken: string;      
+  accessToken: string;
   user: UserData;
 }
 
@@ -64,7 +64,15 @@ export interface FileDTO {
   createdAt: string;
   updatedAt: string;
   fileExtension: string;
+  fileUsersEmails: string[];
   formattedFileSize?: string;
+}
+
+export interface shareNotification {
+  id: number;
+  owner: string;
+  fileName: string;
+  userId: number;
 }
 
 export interface UserStorageInfo {

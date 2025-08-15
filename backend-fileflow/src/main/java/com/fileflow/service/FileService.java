@@ -5,6 +5,7 @@ import com.fileflow.dto.FileDTO;
 import com.fileflow.entity.File;
 import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
+import com.fileflow.exception.ForbiddenException;
 import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.UserRepository;
@@ -158,18 +159,34 @@ public class FileService {
         }
     }
 
-    public FileDTO renameFile(Long fileId, Long userId, String newName) {
+    public FileDTO renameFile(Long fileId, Long userId, String newName) throws ForbiddenException {
         File file = fileRepository.findByIdAndUserId(fileId, userId)
             .orElseThrow(() -> new RuntimeException("File not found"));
-
+        if(file.isShared()){
+            throw new ForbiddenException("you are not allowed to edit the file");
+        }
         // Check if new name already exists for this user
         if (fileRepository.existsByFileNameAndUserId(newName, userId)) {
             throw new RuntimeException("File with this name already exists");
         }
+        renameFileAndCopies(file,newName);
 
+<<<<<<< HEAD
         file.setOriginalFileName(newName);
+=======
+>>>>>>> origin/feature/version1.0.3
         File savedFile = fileRepository.save(file);
         return convertToDTO(savedFile);
+    }
+
+    private void renameFileAndCopies(File file, String newName) {
+        file.setOriginalFileName(newName);
+
+        if (file.getFileCopies() != null) {
+            for (File copy : file.getFileCopies()) {
+                renameFileAndCopies(copy, newName);
+            }
+        }
     }
 
     public void deleteFile(Long fileId, Long userId) {
@@ -217,7 +234,7 @@ public class FileService {
             .collect(Collectors.toList());
     }
 
-    private FileDTO convertToDTO(File file) {
+    public FileDTO convertToDTO(File file) {
         FileDTO dto = new FileDTO();
         dto.setId(file.getId());
         dto.setFileName(file.getFileName());

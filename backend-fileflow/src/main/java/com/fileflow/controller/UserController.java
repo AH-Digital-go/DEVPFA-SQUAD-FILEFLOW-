@@ -37,4 +37,15 @@ public class UserController {
         Map<String, Object> storageInfo = profileService.getUserStorageInfo(userDetails);
         return ResponseEntity.ok(new ApiResponse<>(true, "Storage information retrieved successfully", storageInfo));
     }
+
+    @DeleteMapping("/me/delete")
+    public ResponseEntity<?> deleteMyAccount(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        profileService.deleteCurrentUser(userDetails);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Account deleted successfully" , null));
+    }
+
+    @PostMapping("/me/user")
+    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return  profileService.getCurrentUser(userDetails);
+    }
 }
