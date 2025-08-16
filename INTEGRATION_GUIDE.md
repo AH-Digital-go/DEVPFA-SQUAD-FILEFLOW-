@@ -5,7 +5,7 @@
 ```
 ┌─────────────────┐    HTTP/REST API    ┌─────────────────┐
 │   Next.js       │ ◄─────────────────► │   Spring Boot   │
-│   Frontend      │      (Port 8088)    │   Backend       │
+│   Frontend      │      (Port 8080)    │   Backend       │
 │   (Port 3000)   │                     │                 │
 └─────────────────┘                     └─────────────────┘
         │                                        │

@@ -57,6 +57,6 @@ logging:
     com.yourpackage: DEBUG
     root: DEBUG
 email:
-  sender: akharraz2003@gmail.com
+  sender: exemple@gmail.com
 
 

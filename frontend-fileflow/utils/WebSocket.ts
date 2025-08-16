@@ -4,7 +4,7 @@ import { Client, IMessage } from "@stomp/stompjs";
 import React from "react";
 import SockJS from "sockjs-client";
 
-const SOCKET_URL = 'http://localhost:8088/ws';
+const SOCKET_URL = 'http://localhost:8080/ws';
 const socket = new SockJS(SOCKET_URL);
 // let stompClient: Client | null = null;
 export const stompClient = new Client({
