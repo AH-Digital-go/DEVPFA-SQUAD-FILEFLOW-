@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Heart, Files, Share2 } from 'lucide-react';
+import { Heart, Files, Share2, Folder } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { fileService } from '../services/fileService';
 import { FileDTO } from '@/types/types';
 import FileCard from '../components/FileCard';
+import FolderCard from '../components/FolderCard';
 import AnimatedLoader from '../components/AnimatedLoader';
 import { useAuthStore } from '@/store/authStore';
 
@@ -17,13 +18,15 @@ const FavouritesPage = () => {
   const { user } = useAuthStore();
   const router = useRouter();
   const [ shareType, setShareType] = useState<"by" |"with">("by");
+  const [sharedFolders, setSharedFolders] = useState<any[]>([]);
+  
   const shareTypes=[
     {key:"by",label:"par moi"},
     {key:"with",label:"avec moi"},
   ];
   useEffect(() => {
-
     loadSharedfiles(shareType);
+    loadSharedFolders(shareType);
   }, [shareType]);
 
   const loadSharedfiles = async (shareType:string) => {
@@ -61,6 +64,21 @@ const FavouritesPage = () => {
     }
   };
 
+  const loadSharedFolders = async (shareType: string) => {
+    try {
+      var sharedFoldersData;
+      if (shareType === "by") {
+        sharedFoldersData = await fileService.getSharedFoldersByMe();
+      } else {
+        sharedFoldersData = await fileService.getSharedFoldersWithMe();
+      }
+      
+      setSharedFolders(sharedFoldersData);
+    } catch (error) {
+      console.error('Failed to load shared folders:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -85,7 +103,8 @@ const FavouritesPage = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Partagé</h1>
             <p className="text-gray-600">
-              {files.length} fichier{files.length !== 1 ? 's' : ''} partagé{files.length !== 1 ? 's' : ''}
+              {files.length + sharedFolders.length} élément{files.length + sharedFolders.length !== 1 ? 's' : ''} partagé{files.length + sharedFolders.length !== 1 ? 's' : ''} 
+              ({sharedFolders.length} dossier{sharedFolders.length !== 1 ? 's' : ''}, {files.length} fichier{files.length !== 1 ? 's' : ''})
             </p>
           </div>
         </div>
@@ -102,27 +121,63 @@ const FavouritesPage = () => {
             </select>
       </motion.div>
 
-      {/* Favorites Grid */}
-      {files.length > 0 ? (
+      {/* Shared Items Grid */}
+      {(files.length > 0 || sharedFolders.length > 0) ? (
         <motion.div 
-          className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          className="max-w-6xl mx-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {files.map((file, index) => (
-            <motion.div
-              key={file.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ 
-                duration: 0.5, 
-                delay: index * 0.1 
-              }}
-            >
-              <FileCard file={file} />
-            </motion.div>
-          ))}
+          {/* Shared Folders Section */}
+          {sharedFolders.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Folder className="w-5 h-5" />
+                Dossiers partagés ({sharedFolders.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {sharedFolders.map((folder, index) => (
+                  <motion.div
+                    key={`folder-${folder.id || index}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: index * 0.1 
+                    }}
+                  >
+                    <FolderCard folder={folder} />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Shared Files Section */}
+          {files.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Files className="w-5 h-5" />
+                Fichiers partagés ({files.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {files.map((file, index) => (
+                  <motion.div
+                    key={file.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: (sharedFolders.length + index) * 0.1 
+                    }}
+                  >
+                    <FileCard file={file} />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       ) : (
         <motion.div 
@@ -136,7 +191,7 @@ const FavouritesPage = () => {
               <Files className="w-10 h-10 text-gray-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-3">
-              Aucun fichier partagé
+              Aucun élément partagé
             </h3>
             
             

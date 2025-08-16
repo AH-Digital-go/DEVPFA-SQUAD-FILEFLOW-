@@ -367,6 +367,63 @@ export const fileService = {
     if (response.data.success) return response.data.message;
     throw new Error(response.data.message);
   },
+
+  // =========================
+  // FOLDER SHARING
+  // =========================
+
+  async shareFolder(folderId: number, shareRequest: {
+    targetUserEmail: string;
+    message?: string;
+    permissions?: string;
+    expiresAt?: string;
+    password?: string;
+    requiresApproval?: boolean;
+  }): Promise<any> {
+    const response = await foldersAPI.post<ApiResponse<any>>(`/${folderId}/share`, shareRequest);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async getFolderShares(folderId: number): Promise<any[]> {
+    const response = await foldersAPI.get<ApiResponse<any[]>>(`/${folderId}/shares`);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async respondToFolderShare(shareId: number, accept: boolean): Promise<any> {
+    const response = await foldersAPI.post<ApiResponse<any>>(`/shares/${shareId}/respond`, { accept });
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async revokeFolderShare(shareId: number): Promise<void> {
+    const response = await foldersAPI.delete<ApiResponse<void>>(`/shares/${shareId}`);
+    if (!response.data.success) throw new Error(response.data.message);
+  },
+
+  async getSharedFoldersWithMe(): Promise<any[]> {
+    const response = await foldersAPI.get<ApiResponse<any[]>>(`/shared/with-me`);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async getSharedFoldersByMe(): Promise<any[]> {
+    const response = await foldersAPI.get<ApiResponse<any[]>>(`/shared/by-me`);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async getPendingFolderShares(): Promise<any[]> {
+    const response = await foldersAPI.get<ApiResponse<any[]>>(`/share-requests`);
+    if (response.data.success) return response.data.data;
+    throw new Error(response.data.message);
+  },
+
+  async removeUserFromFolder(folderId: number, userEmail: string): Promise<void> {
+    const response = await foldersAPI.delete<ApiResponse<void>>(`/${folderId}/shares/user?userEmail=${encodeURIComponent(userEmail)}`);
+    if (!response.data.success) throw new Error(response.data.message);
+  },
 };
 
 // Export types for easier imports

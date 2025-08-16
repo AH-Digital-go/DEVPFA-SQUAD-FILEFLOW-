@@ -29,24 +29,41 @@ import {
   X,
   Check,
   Loader2,
-  Download
+  Download,
+  Filter,
+  Calendar,
+  Star,
+  Settings,
+  Share2,
+  Users,
+  Mail
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 interface FolderManagerProps {
   onFolderSelect?: (folder: FolderInfo) => void;
   currentFolderId?: number;
+  onFileUpload?: () => void;
 }
 
 const FolderManager: React.FC<FolderManagerProps> = ({ 
   onFolderSelect, 
-  currentFolderId 
+  currentFolderId,
+  onFileUpload 
 }) => {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [currentFolder, setCurrentFolder] = useState<FolderInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FolderInfo[]>([]);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [searchFilters, setSearchFilters] = useState({
+    dateRange: 'all', // 'all', 'today', 'week', 'month', 'year'
+    sizeRange: 'all', // 'all', 'small', 'medium', 'large'
+    favoriteOnly: false,
+    hasFiles: 'all', // 'all', 'empty', 'hasFiles'
+    colorFilter: 'all', // 'all' or specific color
+  });
   const [navigationStack, setNavigationStack] = useState<FolderInfo[]>([]);
   const [currentViewFolderId, setCurrentViewFolderId] = useState<number | null>(currentFolderId || null);
   
@@ -74,8 +91,21 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   const [bulkOperation, setBulkOperation] = useState<'move' | 'copy' | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  // Folder sharing states
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharingFolder, setSharingFolder] = useState<FolderInfo | null>(null);
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
+  const [sharePermissions, setSharePermissions] = useState('read');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [pendingShares, setPendingShares] = useState<any[]>([]);
+  const [sharedFolders, setSharedFolders] = useState<any[]>([]);
+  const [showSharedFolders, setShowSharedFolders] = useState(false);
+
   useEffect(() => {
     loadFolders();
+    loadPendingShares();
+    loadSharedFolders();
   }, []);
 
   useEffect(() => {
@@ -98,7 +128,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchFilters]);
 
   const loadFolders = async () => {
     try {
@@ -109,6 +139,24 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       toast.error("Impossible de charger les dossiers");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPendingShares = async () => {
+    try {
+      const shares = await fileService.getPendingFolderShares();
+      setPendingShares(shares);
+    } catch (error) {
+      console.error("Erreur lors du chargement des partages en attente:", error);
+    }
+  };
+
+  const loadSharedFolders = async () => {
+    try {
+      const shares = await fileService.getSharedFoldersWithMe();
+      setSharedFolders(shares);
+    } catch (error) {
+      console.error("Erreur lors du chargement des dossiers partagés:", error);
     }
   };
 
@@ -130,7 +178,65 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   const searchFolders = async () => {
     try {
       const results = await fileService.searchFolders(searchQuery);
-      setSearchResults(results);
+      
+      // Apply local filters to search results
+      const filteredResults = results.filter(folder => {
+        // Date range filter
+        if (searchFilters.dateRange !== 'all') {
+          const folderDate = new Date(folder.createdAt);
+          const now = new Date();
+          const diffTime = now.getTime() - folderDate.getTime();
+          const diffDays = diffTime / (1000 * 60 * 60 * 24);
+          
+          switch (searchFilters.dateRange) {
+            case 'today':
+              if (diffDays > 1) return false;
+              break;
+            case 'week':
+              if (diffDays > 7) return false;
+              break;
+            case 'month':
+              if (diffDays > 30) return false;
+              break;
+            case 'year':
+              if (diffDays > 365) return false;
+              break;
+          }
+        }
+
+        // Size filter
+        if (searchFilters.sizeRange !== 'all') {
+          const totalSize = folder.totalSize || 0;
+          switch (searchFilters.sizeRange) {
+            case 'small':
+              if (totalSize > 10 * 1024 * 1024) return false; // > 10MB
+              break;
+            case 'medium':
+              if (totalSize < 10 * 1024 * 1024 || totalSize > 100 * 1024 * 1024) return false; // 10MB - 100MB
+              break;
+            case 'large':
+              if (totalSize < 100 * 1024 * 1024) return false; // > 100MB
+              break;
+          }
+        }
+
+        // Favorite filter
+        if (searchFilters.favoriteOnly && !folder.isFavorite) return false;
+
+        // File content filter
+        if (searchFilters.hasFiles !== 'all') {
+          const hasFiles = (folder.fileCount || 0) > 0;
+          if (searchFilters.hasFiles === 'empty' && hasFiles) return false;
+          if (searchFilters.hasFiles === 'hasFiles' && !hasFiles) return false;
+        }
+
+        // Color filter
+        if (searchFilters.colorFilter !== 'all' && folder.color !== searchFilters.colorFilter) return false;
+
+        return true;
+      });
+      
+      setSearchResults(filteredResults);
     } catch (error) {
       console.error('Erreur lors de la recherche:', error);
     }
@@ -429,6 +535,11 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         await loadFolders();
       }
       
+      // Trigger callback to refresh dashboard files if provided
+      if (onFileUpload) {
+        onFileUpload();
+      }
+      
       clearSelection();
     } catch (error) {
       toast.error('Erreur lors de la suppression en lot');
@@ -470,11 +581,16 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         }
       }
 
-      // Refresh current view
+      // Refresh current view and trigger callback
       if (currentViewFolderId) {
         await loadFolderDetails(currentViewFolderId);
       } else {
         await loadFolders();
+      }
+      
+      // Trigger callback to refresh dashboard files if provided
+      if (onFileUpload) {
+        onFileUpload();
       }
 
       clearSelection();
@@ -549,6 +665,11 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         await loadFolderDetails(currentViewFolderId);
       } else {
         await loadFolderDetails(null);
+      }
+
+      // Trigger callback to refresh dashboard files if provided
+      if (onFileUpload) {
+        onFileUpload();
       }
 
       clearSelection();
@@ -646,6 +767,11 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       }
       
       toast.success(`${files.length} fichier(s) téléchargé(s) avec succès`);
+      
+      // Trigger callback to refresh dashboard files if provided
+      if (onFileUpload) {
+        onFileUpload();
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur lors du téléchargement");
     } finally {
@@ -654,6 +780,61 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       setShowUploadModal(false);
       // Reset file input
       event.target.value = '';
+    }
+  };
+
+  // =========================
+  // FOLDER SHARING FUNCTIONS
+  // =========================
+
+  const openShareModal = (folder: FolderInfo) => {
+    setSharingFolder(folder);
+    setShareEmail('');
+    setShareMessage('');
+    setSharePermissions('read');
+    setShowShareModal(true);
+  };
+
+  const shareFolder = async () => {
+    if (!sharingFolder || !shareEmail.trim()) {
+      toast.error("Email requis pour partager le dossier");
+      return;
+    }
+
+    setShareLoading(true);
+    try {
+      await fileService.shareFolder(sharingFolder.id, {
+        targetUserEmail: shareEmail.trim(),
+        message: shareMessage.trim() || undefined,
+        permissions: sharePermissions,
+        requiresApproval: true
+      });
+
+      toast.success(`Dossier "${sharingFolder.name}" partagé avec ${shareEmail}`);
+      setShowShareModal(false);
+      setSharingFolder(null);
+      setShareEmail('');
+      setShareMessage('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors du partage");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleShareResponse = async (shareId: number, accept: boolean) => {
+    try {
+      await fileService.respondToFolderShare(shareId, accept);
+      toast.success(accept ? "Partage accepté" : "Partage refusé");
+      
+      // Refresh pending shares and shared folders
+      await loadPendingShares();
+      if (accept) {
+        await loadSharedFolders();
+        await loadFolders(); // Refresh main folder view
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors de la réponse");
     }
   };
 
@@ -810,6 +991,13 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={(e) => {
                     e.stopPropagation();
+                    openShareModal(folder);
+                  }}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Partager
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
                     // For demo, move to root - in real app, show folder selector
                     moveFolder(folder, undefined);
                   }}>
@@ -953,19 +1141,137 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     <div className="space-y-6">
       {/* Header with search and action buttons */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 max-w-md space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Rechercher des dossiers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-10"
             />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1"
+            >
+              <Filter className={`h-4 w-4 ${showAdvancedSearch ? 'text-blue-600' : 'text-gray-400'}`} />
+            </Button>
           </div>
+          
+          {/* Advanced Search Filters */}
+          {showAdvancedSearch && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-lg">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Date Range Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-gray-700">Période de création</Label>
+                  <select
+                    value={searchFilters.dateRange}
+                    onChange={(e) => setSearchFilters({...searchFilters, dateRange: e.target.value})}
+                    className="w-full text-xs border border-gray-200 rounded px-2 py-1"
+                  >
+                    <option value="all">Toutes les dates</option>
+                    <option value="today">Aujourd'hui</option>
+                    <option value="week">Cette semaine</option>
+                    <option value="month">Ce mois</option>
+                    <option value="year">Cette année</option>
+                  </select>
+                </div>
+
+                {/* Size Range Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-gray-700">Taille</Label>
+                  <select
+                    value={searchFilters.sizeRange}
+                    onChange={(e) => setSearchFilters({...searchFilters, sizeRange: e.target.value})}
+                    className="w-full text-xs border border-gray-200 rounded px-2 py-1"
+                  >
+                    <option value="all">Toutes tailles</option>
+                    <option value="small">Petit (&lt; 10MB)</option>
+                    <option value="medium">Moyen (10-100MB)</option>
+                    <option value="large">Grand (&gt; 100MB)</option>
+                  </select>
+                </div>
+
+                {/* File Content Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-gray-700">Contenu</Label>
+                  <select
+                    value={searchFilters.hasFiles}
+                    onChange={(e) => setSearchFilters({...searchFilters, hasFiles: e.target.value})}
+                    className="w-full text-xs border border-gray-200 rounded px-2 py-1"
+                  >
+                    <option value="all">Tous les dossiers</option>
+                    <option value="hasFiles">Avec fichiers</option>
+                    <option value="empty">Vides</option>
+                  </select>
+                </div>
+
+                {/* Color Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-gray-700">Couleur</Label>
+                  <select
+                    value={searchFilters.colorFilter}
+                    onChange={(e) => setSearchFilters({...searchFilters, colorFilter: e.target.value})}
+                    className="w-full text-xs border border-gray-200 rounded px-2 py-1"
+                  >
+                    <option value="all">Toutes couleurs</option>
+                    <option value="#3B82F6">Bleu</option>
+                    <option value="#10B981">Vert</option>
+                    <option value="#F59E0B">Orange</option>
+                    <option value="#EF4444">Rouge</option>
+                    <option value="#8B5CF6">Violet</option>
+                    <option value="#F97316">Orange foncé</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Favorites Filter */}
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="favoriteOnly"
+                  checked={searchFilters.favoriteOnly}
+                  onChange={(e) => setSearchFilters({...searchFilters, favoriteOnly: e.target.checked})}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <Label htmlFor="favoriteOnly" className="text-xs text-gray-700">Favoris uniquement</Label>
+              </div>
+
+              {/* Reset Filters */}
+              <div className="mt-3 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchFilters({
+                    dateRange: 'all',
+                    sizeRange: 'all',
+                    favoriteOnly: false,
+                    hasFiles: 'all',
+                    colorFilter: 'all',
+                  })}
+                  className="text-xs"
+                >
+                  Réinitialiser filtres
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2">
+          {/* Show Shared Folders Toggle */}
+          <Button
+            variant={showSharedFolders ? "default" : "outline"}
+            onClick={() => setShowSharedFolders(!showSharedFolders)}
+            disabled={isSelectionMode}
+            className="text-sm"
+          >
+            <Users className="h-4 w-4 mr-1" />
+            Partagés ({sharedFolders.length})
+          </Button>
           {/* Bulk Selection Toggle */}
           <Button
             variant={isSelectionMode ? "default" : "outline"}
@@ -1168,6 +1474,113 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       {/* Breadcrumb */}
       {renderBreadcrumb()}
 
+      {/* Pending Share Notifications */}
+      {pendingShares.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-yellow-800">
+              Demandes de partage en attente ({pendingShares.length})
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {pendingShares.map((share: any) => (
+              <div key={share.id} className="bg-white rounded-lg p-3 border border-yellow-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">
+                      {share.ownerEmail} souhaite partager "{share.folderName}"
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Permissions: {share.permissions === 'read' ? 'Lecture seule' : 
+                                   share.permissions === 'write' ? 'Lecture et écriture' : 'Administration'}
+                    </p>
+                    {share.message && (
+                      <p className="text-sm text-gray-500 italic mt-1">"{share.message}"</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 ml-4">
+                    <Button
+                      size="sm"
+                      onClick={() => handleShareResponse(share.id, true)}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Accepter
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleShareResponse(share.id, false)}
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Refuser
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Shared Folders Section */}
+      {showSharedFolders && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              Dossiers partagés avec moi ({sharedFolders.length})
+            </h2>
+          </div>
+          
+          {sharedFolders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sharedFolders.map((share: any) => (
+                <Card key={share.id} className="cursor-pointer hover:shadow-md transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: '#3B82F6', color: 'white' }}
+                        >
+                          <Folder className="h-5 w-5" />
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{share.folderName}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {share.permissions === 'read' ? 'Lecture' : 
+                               share.permissions === 'write' ? 'Écriture' : 'Admin'}
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-sm text-gray-600 mt-1">
+                            Partagé par {share.ownerEmail}
+                          </p>
+                          
+                          {share.message && (
+                            <p className="text-xs text-gray-500 mt-1 italic">
+                              "{share.message}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 text-gray-500">
+              <Share2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>Aucun dossier partagé</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Search results */}
       {searchQuery.trim() && (
         <div className="space-y-4">
@@ -1181,7 +1594,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       )}
 
       {/* Folder and file list */}
-      {!searchQuery.trim() && (
+      {!searchQuery.trim() && !showSharedFolders && (
         <div className="space-y-6">
           {/* Bulk Actions Toolbar */}
           {isSelectionMode && (
@@ -1456,6 +1869,104 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                 onClick={() => setShowDestinationModal(false)}
                 disabled={bulkLoading}
                 className="flex-1"
+              >
+                Annuler
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder Share Modal */}
+      <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center pb-4">
+            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <Share2 className="h-6 w-6 text-blue-600" />
+            </div>
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Partager le dossier
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              Partagez "{sharingFolder?.name}" avec d'autres utilisateurs
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label htmlFor="shareEmail" className="text-sm font-medium text-gray-700">
+                Email de l'utilisateur *
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="shareEmail"
+                  type="email"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="utilisateur@exemple.com"
+                  className="pl-10"
+                  disabled={shareLoading}
+                />
+              </div>
+            </div>
+
+            {/* Permissions */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Permissions
+              </Label>
+              <select
+                value={sharePermissions}
+                onChange={(e) => setSharePermissions(e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded px-3 py-2"
+                disabled={shareLoading}
+              >
+                <option value="read">Lecture seule</option>
+                <option value="write">Lecture et écriture</option>
+                <option value="admin">Administration</option>
+              </select>
+            </div>
+
+            {/* Message */}
+            <div className="space-y-2">
+              <Label htmlFor="shareMessage" className="text-sm font-medium text-gray-700">
+                Message (optionnel)
+              </Label>
+              <Input
+                id="shareMessage"
+                value={shareMessage}
+                onChange={(e) => setShareMessage(e.target.value)}
+                placeholder="Message pour l'utilisateur..."
+                disabled={shareLoading}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <Button 
+                onClick={shareFolder}
+                disabled={!shareEmail.trim() || shareLoading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {shareLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Partage en cours...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Partager
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowShareModal(false)}
+                disabled={shareLoading}
+                className="px-6"
               >
                 Annuler
               </Button>

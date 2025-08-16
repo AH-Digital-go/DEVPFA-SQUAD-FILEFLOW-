@@ -447,8 +447,27 @@ const DashboardPage = () => {
         )
         ) : (
           /* Folders Tab Content */
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <FolderManager />
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div className="p-6 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Gestion des dossiers</h2>
+                  <p className="text-slate-600 text-sm mt-1">Organisez vos fichiers avec des dossiers personnalisés</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Téléverser dans dossier
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <FolderManager onFileUpload={() => loadFiles()} />
+            </div>
           </div>
         )}
       </motion.div>

@@ -2,10 +2,13 @@ package com.fileflow.controller;
 
 import com.fileflow.dto.BulkDeleteResponse;
 import com.fileflow.dto.BulkOperationRequest;
+import com.fileflow.dto.FolderShareRequest;
+import com.fileflow.dto.FolderShareDTO;
 import com.fileflow.utils.ApiResponse;
 import com.fileflow.dto.FolderDTO;
 import com.fileflow.security.CustomUserDetails;
 import com.fileflow.service.FolderService;
+import com.fileflow.service.FolderShareService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import java.util.Map;
 public class FolderController {
 
     private final FolderService folderService;
+    private final FolderShareService folderShareService;
 
     @PostMapping
     @Operation(summary = "Create a new folder")
@@ -272,6 +276,142 @@ public class FolderController {
             BulkDeleteResponse response = new BulkDeleteResponse(deletedCount, request.getFolderIds().size());
             
             return ResponseEntity.ok(ApiResponse.success("Bulk delete completed", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // =========================
+    // FOLDER SHARING ENDPOINTS
+    // =========================
+
+    @PostMapping("/{id}/share")
+    @Operation(summary = "Share folder with another user")
+    public ResponseEntity<ApiResponse<FolderShareDTO>> shareFolder(
+            @PathVariable Long id,
+            @RequestBody FolderShareRequest request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            FolderShareDTO share = folderShareService.shareFolder(id, userDetails.getId(), request);
+            return ResponseEntity.ok(ApiResponse.success("Folder shared successfully", share));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/shares")
+    @Operation(summary = "Get all shares for a folder")
+    public ResponseEntity<ApiResponse<List<FolderShareDTO>>> getFolderShares(
+            @PathVariable Long id,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderShareDTO> shares = folderShareService.getFolderShares(id, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Folder shares retrieved successfully", shares));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/shares/{shareId}/respond")
+    @Operation(summary = "Respond to a folder share request")
+    public ResponseEntity<ApiResponse<FolderShareDTO>> respondToShare(
+            @PathVariable Long shareId,
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            Boolean accept = (Boolean) request.get("accept");
+            if (accept == null) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Accept parameter is required"));
+            }
+            
+            FolderShareDTO share = folderShareService.respondToShare(shareId, userDetails.getId(), accept);
+            String message = accept ? "Share request accepted" : "Share request rejected";
+            return ResponseEntity.ok(ApiResponse.success(message, share));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/shares/{shareId}")
+    @Operation(summary = "Revoke a folder share")
+    public ResponseEntity<ApiResponse<Void>> revokeShare(
+            @PathVariable Long shareId,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            folderShareService.revokeShare(shareId, userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Share revoked successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/shared/with-me")
+    @Operation(summary = "Get folders shared with the current user")
+    public ResponseEntity<ApiResponse<List<FolderShareDTO>>> getSharedWithMe(Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderShareDTO> sharedFolders = folderShareService.getSharedFoldersForUser(userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Shared folders retrieved successfully", sharedFolders));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/shared/by-me")
+    @Operation(summary = "Get folders shared by the current user")
+    public ResponseEntity<ApiResponse<List<FolderShareDTO>>> getSharedByMe(Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderShareDTO> sharedFolders = folderShareService.getSharesCreatedByUser(userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Shared folders retrieved successfully", sharedFolders));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/share-requests")
+    @Operation(summary = "Get pending folder share requests")
+    public ResponseEntity<ApiResponse<List<FolderShareDTO>>> getPendingShares(Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderShareDTO> pendingShares = folderShareService.getPendingSharesForUser(userDetails.getId());
+            return ResponseEntity.ok(ApiResponse.success("Pending shares retrieved successfully", pendingShares));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}/shares/user")
+    @Operation(summary = "Remove user from folder sharing")
+    public ResponseEntity<ApiResponse<Void>> removeUserFromFolder(
+            @PathVariable Long id,
+            @RequestParam String userEmail,
+            Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            folderShareService.removeUserFromFolder(id, userDetails.getId(), userEmail);
+            return ResponseEntity.ok(ApiResponse.success("User removed from folder sharing", null));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error(e.getMessage()));
