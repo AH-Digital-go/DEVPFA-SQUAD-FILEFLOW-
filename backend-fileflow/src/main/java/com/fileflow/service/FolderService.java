@@ -1,5 +1,6 @@
 package com.fileflow.service;
 
+import com.fileflow.dto.BreadcrumbItem;
 import com.fileflow.dto.FileDTO;
 import com.fileflow.dto.FolderDTO;
 import com.fileflow.entity.File;
@@ -7,6 +8,7 @@ import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
 import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.FolderRepository;
+import com.fileflow.repository.FolderShareRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +30,14 @@ public class FolderService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final FileRepository fileRepository;
+    private final FolderShareRepository folderShareRepository;
 
     @Autowired
-    public FolderService(FolderRepository folderRepository, UserRepository userRepository, FileRepository fileRepository) {
+    public FolderService(FolderRepository folderRepository, UserRepository userRepository, FileRepository fileRepository, FolderShareRepository folderShareRepository) {
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
         this.fileRepository = fileRepository;
+        this.folderShareRepository = folderShareRepository;
     }
 
     public FolderDTO createFolder(String name, Long parentId, Long userId, String description, String color) {
@@ -158,11 +162,28 @@ public class FolderService {
         Folder folder = folderRepository.findByIdAndUserId(folderId, userId)
             .orElseThrow(() -> new RuntimeException("Folder not found"));
 
+        // Delete all folder shares first
+        cleanupFolderShares(folder);
+        
         // Delete all files in the folder first
         deleteFolderContentsRecursively(folder);
         
         // Now delete the folder itself
         folderRepository.delete(folder);
+    }
+    
+    private void cleanupFolderShares(Folder folder) {
+        // Delete all shares for this folder
+        List<com.fileflow.entity.FolderShare> folderShares = folderShareRepository.findByFolderId(folder.getId());
+        if (!folderShares.isEmpty()) {
+            folderShareRepository.deleteAll(folderShares);
+            log.info("Deleted {} folder shares for folder {}", folderShares.size(), folder.getId());
+        }
+        
+        // Recursively clean up shares for subfolders
+        for (Folder subfolder : folder.getSubfolders()) {
+            cleanupFolderShares(subfolder);
+        }
     }
     
     private void deleteFolderContentsRecursively(Folder folder) {
@@ -187,6 +208,8 @@ public class FolderService {
         // Recursively delete all subfolders
         if (!folder.getSubfolders().isEmpty()) {
             for (Folder subfolder : new ArrayList<>(folder.getSubfolders())) {
+                // Clean up folder shares for this subfolder first
+                cleanupFolderShares(subfolder);
                 deleteFolderContentsRecursively(subfolder);
                 folderRepository.delete(subfolder);
             }
@@ -423,11 +446,11 @@ public class FolderService {
 
 
 
-    private List<String> buildBreadcrumb(Folder folder) {
-        List<String> breadcrumb = new ArrayList<>();
+    private List<BreadcrumbItem> buildBreadcrumb(Folder folder) {
+        List<BreadcrumbItem> breadcrumb = new ArrayList<>();
         Folder current = folder;
         while (current != null) {
-            breadcrumb.add(0, current.getName());
+            breadcrumb.add(0, new BreadcrumbItem(current.getId(), current.getName()));
             current = current.getParent();
         }
         return breadcrumb;
@@ -559,6 +582,9 @@ public class FolderService {
         int deletedCount = 0;
         for (Folder folder : foldersToDelete) {
             try {
+                // Clean up folder shares first
+                cleanupFolderShares(folder);
+                
                 // Delete folder contents recursively (files and subfolders)
                 deleteFolderContentsRecursively(folder);
                 

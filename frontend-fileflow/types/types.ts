@@ -143,6 +143,11 @@ export interface SharedFileInfo {
 }
 
 // Gestion des dossiers
+export interface BreadcrumbItem {
+  id: number;
+  name: string;
+}
+
 export interface FolderInfo {
   id: number;
   name: string;
@@ -161,7 +166,7 @@ export interface FolderInfo {
   formattedSize: string;
   subfolders?: FolderInfo[];
   files?: FileDTO[];
-  breadcrumb: string[];
+  breadcrumb: BreadcrumbItem[];
 }
 
 export interface FolderUpdateRequest {

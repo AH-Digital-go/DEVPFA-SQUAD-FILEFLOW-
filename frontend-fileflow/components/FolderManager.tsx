@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fileService } from '../services/fileService';
-import { FolderInfo } from '@/types/types';
+import { FolderInfo, BreadcrumbItem } from '@/types/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -410,6 +410,20 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       }
     } catch (error) {
       console.error('Navigation error:', error);
+      toast.error('Impossible de naviguer vers ce dossier');
+    }
+  };
+
+  const navigateToFolderById = async (folderId: number) => {
+    try {
+      // Clear navigation stack since we're jumping directly
+      setNavigationStack([]);
+      
+      // Navigate to the selected folder and load its details
+      setCurrentViewFolderId(folderId);
+      await loadFolderDetails(folderId);
+    } catch (error) {
+      console.error('Breadcrumb navigation error:', error);
       toast.error('Impossible de naviguer vers ce dossier');
     }
   };
@@ -850,8 +864,8 @@ const FolderManager: React.FC<FolderManagerProps> = ({
           <Home className="h-4 w-4" />
           <span>Accueil</span>
         </button>
-        {currentFolder.breadcrumb && currentFolder.breadcrumb.map((item: string, index: number) => (
-          <React.Fragment key={index}>
+        {currentFolder.breadcrumb && currentFolder.breadcrumb.map((item, index) => (
+          <React.Fragment key={item.id}>
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button 
               onClick={() => {
@@ -860,14 +874,14 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                   // Current folder, do nothing
                   return;
                 }
-                // For now, just show the text. In a full implementation,
-                // you'd need to track folder IDs in breadcrumb
+                // Navigate to the clicked breadcrumb folder
+                navigateToFolderById(item.id);
               }}
               className={`hover:text-blue-600 transition-colors ${
                 index === currentFolder.breadcrumb.length - 1 ? 'text-gray-900 font-medium' : ''
               }`}
             >
-              {item}
+              {item.name}
             </button>
           </React.Fragment>
         ))}
