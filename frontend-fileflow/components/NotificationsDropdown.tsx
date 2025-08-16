@@ -13,18 +13,30 @@ export function NotificationsDropdown({
 }: {
     userId: number;
 }) {
-    // Sample notifications data
     const [newNotification, setnewNotification] = useState(true);
     const [notesNumber, setNotesNumber] = useState(0);
     const [notifications, setNotifications] = useState<shareNotification[]>([]);
-    const { files,setFiles } = useFileStore();
+    const { files, setFiles } = useFileStore();
+
+    // Load initial notifications and count on mount
     useEffect(() => {
+        const loadInitialNotifications = async () => {
+            try {
+                const initialNotifications = await fileService.getAllShareNotifications(userId);
+                setNotifications(initialNotifications);
+                setNotesNumber(initialNotifications.length);
+            } catch (error) {
+                console.error("Error loading initial notifications:", error);
+            }
+        };
+
+        loadInitialNotifications();
+
+        // Setup WebSocket connection
         if (!stompClient.active) {
             connectWebSocket(setNotifications, setNotesNumber);
-            
         }
-    })
-
+    }, [userId]);
 
     const handleResponse = async (notification: shareNotification, response: boolean) => {
         try {
@@ -59,32 +71,44 @@ export function NotificationsDropdown({
                 }
             }
             
-            setNotifications(notifications.filter((n) => n.id !== notification.id));
+            // Remove notification from list and decrease count
+            const updatedNotifications = notifications.filter((n) => n.id !== notification.id);
+            setNotifications(updatedNotifications);
+            setNotesNumber(Math.max(0, notesNumber - 1));
         } catch (error) {
             console.log(error);
             toast.error("Erreur lors de la réponse à la notification");
         }
     };
 
-
     const onOpenChange = async (open: boolean) => {
         if (open) {
-            const response = await fileService.getAllShareNotifications(userId);
-            setNotifications(response);
-            setNotesNumber(0);
+            // Refresh notifications when dropdown opens but don't reset count
+            try {
+                const response = await fileService.getAllShareNotifications(userId);
+                setNotifications(response);
+                // Only update count if we have fewer notifications than the badge shows
+                if (response.length !== notesNumber) {
+                    setNotesNumber(response.length);
+                }
+            } catch (error) {
+                console.error("Error refreshing notifications:", error);
+            }
         }
-    }
+    };
 
     return (
         <DropdownMenu.Root onOpenChange={onOpenChange}>
-            <DropdownMenu.Trigger asChild>
-                <button className="relative p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors duration-300">
-                    <Bell className="w-5 h-5 text-slate-600" />
-                    {newNotification && (
-                        <span className={`absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 text-white text-xs ${notesNumber == 0 ? "hidden" : ""} `}>{notesNumber}</span>
-                    )}
-                </button>
-            </DropdownMenu.Trigger>
+                            <DropdownMenu.Trigger className="relative hover:bg-gray-200 p-2 rounded-full">
+                    <Bell className="h-6 w-6" />
+                    <div
+                        className={`absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center ${
+                            notesNumber > 0 ? "" : "hidden"
+                        }`}
+                    >
+                        {notesNumber}
+                    </div>
+                </DropdownMenu.Trigger>
 
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
