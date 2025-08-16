@@ -71,8 +71,12 @@ export interface FileDTO {
 export interface shareNotification {
   id: number;
   owner: string;
-  fileName: string;
+  fileName?: string;
+  folderName?: string;
   userId: number;
+  type: 'file' | 'folder'; // Add type to distinguish between file and folder notifications
+  message?: string;
+  permissions?: string;
 }
 
 export interface UserStorageInfo {

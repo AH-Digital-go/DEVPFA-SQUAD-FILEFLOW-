@@ -9,12 +9,15 @@ import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.FolderShareRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,15 +29,18 @@ public class FolderShareService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public FolderShareService(FolderShareRepository folderShareRepository, 
                              FolderRepository folderRepository,
                              UserRepository userRepository,
-                             PasswordEncoder passwordEncoder) {
+                             PasswordEncoder passwordEncoder,
+                             SimpMessagingTemplate messagingTemplate) {
         this.folderShareRepository = folderShareRepository;
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -79,6 +85,22 @@ public class FolderShareService {
         }
 
         folderShare = folderShareRepository.save(folderShare);
+        
+        // Send WebSocket notification to target user
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("id", folderShare.getId());
+        notification.put("owner", owner.getEmail());
+        notification.put("folderName", folder.getName());
+        notification.put("type", "folder");
+        notification.put("message", request.getMessage());
+        notification.put("permissions", folderShare.getPermissions());
+        notification.put("userId", targetUser.getId());
+        
+        messagingTemplate.convertAndSendToUser(
+            targetUser.getEmail(),
+            "/queue/notify",
+            notification
+        );
         
         log.info("Folder '{}' (ID: {}) shared with user '{}' by '{}'", 
                 folder.getName(), folderId, targetUser.getEmail(), owner.getEmail());

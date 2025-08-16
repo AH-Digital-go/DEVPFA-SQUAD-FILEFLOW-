@@ -26,49 +26,53 @@ export function NotificationsDropdown({
     })
 
 
-    const handleResponse = async (id: number, response: boolean) => {
+    const handleResponse = async (notification: shareNotification, response: boolean) => {
         try {
-            const file = await fileService.shareResponse(id, response) as FileDTO;
-            console.log(file);
-            const fileItem = {
-                id: file.id.toString(), // Convertir number en string si nécessaire
-                name: file.originalFileName,
-                originalName: file.originalFileName,
-                type: file.contentType,
-                size: file.fileSize,
-                uuid: file.fileUuid,
-                isFavorite: file.isFavorite,
-                createdAt: file.createdAt,
-                updatedAt: file.updatedAt,
-                extension: file.fileExtension,
-                formattedSize: file.formattedFileSize,
-            } as unknown as FileItem;
-            setFiles([...files,fileItem]);
-            setNotifications(notifications.filter((n) => n.id !== id));
-            if (response) {
-                toast.info("you have access to the file now")
+            if (notification.type === 'file') {
+                const file = await fileService.shareResponse(notification.id, response) as FileDTO;
+                console.log(file);
+                const fileItem = {
+                    id: file.id.toString(),
+                    name: file.originalFileName,
+                    originalName: file.originalFileName,
+                    type: file.contentType,
+                    size: file.fileSize,
+                    uuid: file.fileUuid,
+                    isFavorite: file.isFavorite,
+                    createdAt: file.createdAt,
+                    updatedAt: file.updatedAt,
+                    extension: file.fileExtension,
+                    formattedSize: file.formattedFileSize,
+                } as unknown as FileItem;
+                setFiles([...files, fileItem]);
+                if (response) {
+                    toast.info("Vous avez maintenant accès au fichier");
+                } else {
+                    toast.info("Vous avez refusé le fichier");
+                }
+            } else if (notification.type === 'folder') {
+                await fileService.respondToFolderShare(notification.id, response);
+                if (response) {
+                    toast.info("Vous avez maintenant accès au dossier");
+                } else {
+                    toast.info("Vous avez refusé le dossier");
+                }
             }
-            else {
-                toast.info("you have declined the file")
-            }
+            
+            setNotifications(notifications.filter((n) => n.id !== notification.id));
         } catch (error) {
-            console.log(error)
+            console.log(error);
+            toast.error("Erreur lors de la réponse à la notification");
         }
-
-        // Add your logic here
-
     };
 
 
     const onOpenChange = async (open: boolean) => {
         if (open) {
-
-            const response = await fileService.getShareNotfications(userId);
+            const response = await fileService.getAllShareNotifications(userId);
             setNotifications(response);
             setNotesNumber(0);
         }
-
-
     }
 
     return (
@@ -101,9 +105,13 @@ export function NotificationsDropdown({
                                 >
                                     <NotificationItem
                                         fileName={notification.fileName}
+                                        folderName={notification.folderName}
+                                        type={notification.type}
                                         owner={notification.owner}
-                                        onAccept={() => handleResponse(notification.id, true)}
-                                        onDecline={() => handleResponse(notification.id, false)}
+                                        message={notification.message}
+                                        permissions={notification.permissions}
+                                        onAccept={() => handleResponse(notification, true)}
+                                        onDecline={() => handleResponse(notification, false)}
                                     />
                                 </DropdownMenu.Item>
                             ))

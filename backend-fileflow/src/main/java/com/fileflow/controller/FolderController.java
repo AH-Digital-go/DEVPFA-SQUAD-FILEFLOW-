@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/folders")
@@ -412,6 +414,36 @@ public class FolderController {
             
             folderShareService.removeUserFromFolder(id, userDetails.getId(), userEmail);
             return ResponseEntity.ok(ApiResponse.success("User removed from folder sharing", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/share-notifications")
+    @Operation(summary = "Get pending folder share requests formatted for notifications")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getShareNotifications(Authentication authentication) {
+        try {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            
+            List<FolderShareDTO> pendingShares = folderShareService.getPendingSharesForUser(userDetails.getId());
+            
+            // Format notifications for frontend
+            List<Map<String, Object>> notifications = pendingShares.stream()
+                .map(share -> {
+                    Map<String, Object> notification = new HashMap<>();
+                    notification.put("id", share.getId());
+                    notification.put("owner", share.getOwnerEmail());
+                    notification.put("folderName", share.getFolderName());
+                    notification.put("type", "folder");
+                    notification.put("message", share.getMessage());
+                    notification.put("permissions", share.getPermissions());
+                    notification.put("userId", userDetails.getId());
+                    return notification;
+                })
+                .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(ApiResponse.success("Share notifications retrieved successfully", notifications));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error(e.getMessage()));

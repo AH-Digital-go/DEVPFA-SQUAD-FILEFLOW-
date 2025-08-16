@@ -171,6 +171,30 @@ export const fileService = {
     throw new Error(response.data.message);
   },
 
+  async getFolderShareNotifications(userId: number): Promise<shareNotification[]> {
+    const response = await foldersAPI.get<ApiResponse<shareNotification[]>>(`/share-notifications`);
+    if (response.data.success) return response.data.data.map(notification => ({
+      ...notification,
+      type: 'folder' as const
+    }));
+    throw new Error(response.data.message);
+  },
+
+  async getAllShareNotifications(userId: number): Promise<shareNotification[]> {
+    try {
+      const [fileNotifications, folderNotifications] = await Promise.all([
+        this.getShareNotfications(userId).then(notifications => 
+          notifications.map(n => ({ ...n, type: 'file' as const }))
+        ),
+        this.getFolderShareNotifications(userId)
+      ]);
+      return [...fileNotifications, ...folderNotifications];
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+  },
+
   async shareResponse(shareFileId: number, shareresponse: boolean): Promise<unknown> {
     const response = await sharingAPI.post(
       `/share/response/${shareFileId}`, null,
