@@ -12,7 +12,7 @@ import {
   shareNotification,
 } from '@/types/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 // === AXIOS INSTANCES ===
 const fileAPI = axios.create({

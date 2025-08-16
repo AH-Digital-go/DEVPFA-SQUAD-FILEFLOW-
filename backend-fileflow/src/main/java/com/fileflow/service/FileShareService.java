@@ -95,7 +95,7 @@ public class FileShareService implements IFileShareServices {
 
     @Override
     public List<FileDTO> getSharedFilesWithMe(Long userId) {
-        List<File> files = fileRepository.getFileSharedWithMe();
+        List<File> files = fileShareRepository.findByTargetId(userId);
         List<FileDTO> fileDtos=new ArrayList<>();
         for(File file:files){
             fileDtos.add(fileService.convertToDTO(file));

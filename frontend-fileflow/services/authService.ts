@@ -4,7 +4,7 @@ import { useAuthStore, User } from '@/store/authStore';
 import { disconnectWebSocket } from '@/utils/WebSocket';
 
 // Updated to match backend port
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 const authAPI = axios.create({
   baseURL: `${API_BASE_URL}/auth`,

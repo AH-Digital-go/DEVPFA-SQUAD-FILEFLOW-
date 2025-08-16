@@ -1,5 +1,5 @@
 server:
-  port: 8088
+  port: 8080
 
 spring:
   application:
@@ -39,7 +39,7 @@ file:
 
 # CORS Configuration
 cors:
-  allowed-origins: http://localhost:3000
+  allowed-origins: http://localhost:3000,http://localhost:3001
   allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
   allowed-headers: "*"
   allow-credentials: true

@@ -90,7 +90,7 @@ public class EmailService {
                 .setAccessType("offline")
                 .setApprovalPrompt("force")
                 .build();
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8080).build();
         //returns an authorized Credential object.
         Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
         // Rafraîchir automatiquement si le token est expiré
