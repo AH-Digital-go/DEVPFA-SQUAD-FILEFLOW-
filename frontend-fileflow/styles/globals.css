@@ -21,6 +21,32 @@
   --neutral-800: #1e293b;
   --neutral-900: #0f172a;
   --radius: 0.75rem;
+
+  /* Shadcn/UI CSS Variables for light theme */
+  --background: 255 255 255; /* white */
+  --foreground: 15 23 42; /* neutral-900 */
+  --muted: 241 245 249; /* neutral-100 */
+  --muted-foreground: 100 116 139; /* neutral-500 */
+  --popover: 255 255 255; /* white */
+  --popover-foreground: 15 23 42; /* neutral-900 */
+  --card: 255 255 255; /* white */
+  --card-foreground: 15 23 42; /* neutral-900 */
+  --border: 226 232 240; /* neutral-200 */
+  --input: 255 255 255; /* white */
+  --primary: 37 99 235; /* blue-600 */
+  --primary-foreground: 255 255 255; /* white */
+  --secondary: 241 245 249; /* neutral-100 */
+  --secondary-foreground: 15 23 42; /* neutral-900 */
+  --accent: 241 245 249; /* neutral-100 */
+  --accent-foreground: 15 23 42; /* neutral-900 */
+  --destructive: 239 68 68; /* red-500 */
+  --destructive-foreground: 255 255 255; /* white */
+  --ring: 37 99 235; /* blue-600 */
+  --chart-1: 37 99 235; /* blue-600 */
+  --chart-2: 16 185 129; /* emerald-500 */
+  --chart-3: 245 158 11; /* amber-500 */
+  --chart-4: 239 68 68; /* red-500 */
+  --chart-5: 139 92 246; /* violet-500 */
 }
 
 * {

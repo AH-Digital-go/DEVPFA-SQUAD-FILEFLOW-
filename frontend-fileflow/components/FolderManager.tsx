@@ -909,7 +909,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     return (
       <Card 
         key={folder.id} 
-        className={`cursor-pointer hover:shadow-md transition-all ${
+        className={`cursor-pointer hover:shadow-md transition-all bg-white ${
           isSelected ? 'ring-2 ring-blue-500 shadow-md' : ''
         } ${isSelectionMode ? 'select-none' : ''}`}
         onClick={(e) => {
@@ -953,7 +953,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium">{folder.name}</h3>
+                  <h3 className="font-medium text-gray-900">{folder.name}</h3>
                   {folder.isFavorite && (
                     <Heart className="h-4 w-4 text-red-500 fill-current" />
                   )}
@@ -1054,7 +1054,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     return (
       <Card 
         key={file.id} 
-        className={`transition-all ${
+        className={`bg-white transition-all ${
           isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'hover:shadow-sm'
         } ${isSelectionMode ? 'select-none' : ''}`}
         onClick={(e) => {
@@ -1162,7 +1162,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               placeholder="Rechercher des dossiers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10"
+              className="pl-10 pr-10 bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
             />
             <Button
               variant="ghost"
@@ -1278,24 +1278,24 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         <div className="flex gap-2">
           {/* Show Shared Folders Toggle */}
           <Button
-            variant={showSharedFolders ? "default" : "outline"}
+            variant="outline"
             onClick={() => setShowSharedFolders(!showSharedFolders)}
             disabled={isSelectionMode}
-            className="text-sm"
+            className={`text-sm bg-white border-gray-300 ${showSharedFolders ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
           >
             <Users className="h-4 w-4 mr-1" />
             Partagés ({sharedFolders.length})
           </Button>
           {/* Bulk Selection Toggle */}
           <Button
-            variant={isSelectionMode ? "default" : "outline"}
+            variant="outline"
             onClick={() => {
               setIsSelectionMode(!isSelectionMode);
               if (isSelectionMode) {
                 clearSelection();
               }
             }}
-            className={isSelectionMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+            className={`bg-white border-gray-300 ${isSelectionMode ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
           >
             {isSelectionMode ? (
               <>
@@ -1342,7 +1342,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                 Nouveau dossier
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white border border-gray-200 shadow-xl">
             <DialogHeader className="text-center pb-4">
               <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <FolderPlus className="h-6 w-6 text-blue-600" />
@@ -1350,7 +1350,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               <DialogTitle className="text-xl font-semibold text-gray-900">
                 Créer un nouveau dossier
               </DialogTitle>
-              <DialogDescription className="text-gray-600 mt-2">
+              <DialogDescription className="text-gray-700 mt-2 font-medium">
                 {currentFolder ? 
                   `Créer un dossier dans "${currentFolder.name}"` : 
                   "Créer un dossier à la racine de votre espace"
@@ -1361,23 +1361,23 @@ const FolderManager: React.FC<FolderManagerProps> = ({
             <div className="space-y-6 py-4">
               {/* Folder Name */}
               <div className="space-y-2">
-                <Label htmlFor="folderName" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="folderName" className="text-sm font-semibold text-gray-900">
                   Nom du dossier *
                 </Label>
                 <div className="relative">
-                  <Folder className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Folder className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600" />
                   <Input
                     id="folderName"
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     placeholder="Mon nouveau dossier"
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="pl-10 bg-white border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder:text-gray-500"
                     onKeyPress={(e) => e.key === 'Enter' && createFolder()}
                     autoFocus
                   />
                 </div>
                 {newFolderName.trim() && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
+                  <p className="text-xs text-green-700 font-medium flex items-center gap-1">
                     <span className="w-1 h-1 bg-green-600 rounded-full"></span>
                     Nom valide
                   </p>
@@ -1386,17 +1386,17 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
               {/* Folder Description */}
               <div className="space-y-2">
-                <Label htmlFor="folderDescription" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="folderDescription" className="text-sm font-semibold text-gray-900">
                   Description (optionnel)
                 </Label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-600" />
                   <textarea
                     id="folderDescription"
                     value={newFolderDescription}
                     onChange={(e) => setNewFolderDescription(e.target.value)}
                     placeholder="Décrivez le contenu de ce dossier..."
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500 resize-none"
+                    className="w-full pl-10 pr-3 py-2 bg-white border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none text-gray-900 placeholder:text-gray-500"
                     rows={3}
                   />
                 </div>
@@ -1404,19 +1404,19 @@ const FolderManager: React.FC<FolderManagerProps> = ({
 
               {/* Folder Color */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">
+                <Label className="text-sm font-semibold text-gray-900">
                   Couleur du dossier
                 </Label>
                 <div className="space-y-3">
                   {/* Preview of selected color */}
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
                     <div 
                       className="w-8 h-8 rounded-lg shadow-sm border-2 border-white"
                       style={{ backgroundColor: newFolderColor }}
                     />
                     <div className="flex items-center gap-2">
-                      <Folder className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Aperçu: {newFolderName || 'Mon nouveau dossier'}</span>
+                      <Folder className="h-4 w-4 text-gray-700" />
+                      <span className="text-sm text-gray-800 font-medium">Aperçu: {newFolderName || 'Mon nouveau dossier'}</span>
                     </div>
                   </div>
                   
@@ -1444,10 +1444,10 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                           style={{ backgroundColor: colorOption.color }}
                           title={colorOption.name}
                         />
-                        <span className={`text-xs mt-1 block transition-colors ${
+                        <span className={`text-xs mt-1 block transition-colors font-medium ${
                           newFolderColor === colorOption.color 
-                            ? 'text-gray-900 font-medium' 
-                            : 'text-gray-500'
+                            ? 'text-gray-900 font-bold' 
+                            : 'text-gray-700'
                         }`}>
                           {colorOption.name.split(' ')[0]}
                         </span>
@@ -1458,11 +1458,11 @@ const FolderManager: React.FC<FolderManagerProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <div className="flex gap-3 pt-4 border-t-2 border-gray-300">
               <Button 
                 onClick={createFolder} 
                 disabled={!newFolderName.trim()}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 transition-colors duration-200"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2.5 transition-colors duration-200 shadow-md"
               >
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Créer le dossier
@@ -1475,7 +1475,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
                   setNewFolderDescription('');
                   setNewFolderColor('#3B82F6');
                 }}
-                className="px-6 py-2.5 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                className="px-6 py-2.5 border-2 border-gray-400 text-gray-800 hover:bg-gray-100 hover:border-gray-500 transition-colors duration-200 font-semibold"
               >
                 Annuler
               </Button>
