@@ -6,12 +6,12 @@ import com.fileflow.dto.FolderDTO;
 import com.fileflow.entity.File;
 import com.fileflow.entity.Folder;
 import com.fileflow.entity.User;
+import com.fileflow.config.FileStorageConfig;
 import com.fileflow.repository.FileRepository;
 import com.fileflow.repository.FolderRepository;
 import com.fileflow.repository.FolderShareRepository;
 import com.fileflow.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,13 +32,14 @@ public class FolderService {
     private final UserRepository userRepository;
     private final FileRepository fileRepository;
     private final FolderShareRepository folderShareRepository;
+    private final FileStorageConfig fileStorageConfig;
 
-    @Autowired
-    public FolderService(FolderRepository folderRepository, UserRepository userRepository, FileRepository fileRepository, FolderShareRepository folderShareRepository) {
+    public FolderService(FolderRepository folderRepository, UserRepository userRepository, FileRepository fileRepository, FolderShareRepository folderShareRepository, FileStorageConfig fileStorageConfig) {
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
         this.fileRepository = fileRepository;
         this.folderShareRepository = folderShareRepository;
+        this.fileStorageConfig = fileStorageConfig;
     }
 
     public FolderDTO createFolder(String name, Long parentId, Long userId, String description, String color) {
@@ -271,6 +273,7 @@ public class FolderService {
     /**
      * Copy/Duplicate a folder with all its contents
      */
+    @Transactional
     public FolderDTO copyFolder(Long folderId, Long newParentId, String newName, Long userId) {
         Folder originalFolder = folderRepository.findByIdAndUserId(folderId, userId)
             .orElseThrow(() -> new RuntimeException("Folder not found"));
@@ -292,14 +295,21 @@ public class FolderService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Create the copy
-        Folder copiedFolder = copyFolderRecursively(originalFolder, newParentId, finalName, user);
-        copiedFolder = folderRepository.save(copiedFolder);
-        
-        log.info("Copied folder '{}' (ID: {}) to '{}' (ID: {})", 
-                originalFolder.getName(), folderId, copiedFolder.getName(), copiedFolder.getId());
-        
-        return convertToDTO(copiedFolder, true);
+        try {
+            // Create the copy (database operations only)
+            Folder copiedFolder = copyFolderStructureRecursively(originalFolder, newParentId, finalName, user);
+            
+            // Copy files in a separate method outside of transaction rollback scope
+            copyAllFilesInFolderHierarchy(originalFolder, copiedFolder);
+            
+            log.info("Successfully copied folder '{}' (ID: {}) to '{}' (ID: {})", 
+                    originalFolder.getName(), folderId, copiedFolder.getName(), copiedFolder.getId());
+            
+            return convertToDTO(copiedFolder, true);
+        } catch (Exception e) {
+            log.error("Failed to copy folder '{}': {}", originalFolder.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to copy folder: " + e.getMessage());
+        }
     }
 
     /**
@@ -320,9 +330,9 @@ public class FolderService {
     }
 
     /**
-     * Recursively copy a folder and all its contents
+     * Copy folder structure (database operations only) - no file copying
      */
-    private Folder copyFolderRecursively(Folder original, Long newParentId, String newName, User user) {
+    private Folder copyFolderStructureRecursively(Folder original, Long newParentId, String newName, User user) {
         Folder copy = new Folder();
         copy.setName(newName);
         copy.setUser(user);
@@ -344,15 +354,54 @@ public class FolderService {
         // Save the folder first to get an ID
         copy = folderRepository.save(copy);
 
-        // Copy subfolders recursively
+        // Copy subfolders recursively (database operations only)
         for (Folder subfolder : original.getSubfolders()) {
-            copyFolderRecursively(subfolder, copy.getId(), subfolder.getName(), user);
+            copyFolderStructureRecursively(subfolder, copy.getId(), subfolder.getName(), user);
         }
-
-        // Note: File copying would be handled by FileService
-        // For now, we're only copying the folder structure
         
         return copy;
+    }
+
+    /**
+     * Copy all files in folder hierarchy - separate from database transaction
+     */
+    private void copyAllFilesInFolderHierarchy(Folder originalFolder, Folder copiedFolder) {
+        // Copy files in the current folder
+        copyFilesInFolder(originalFolder, copiedFolder);
+        
+        // Copy files in subfolders recursively
+        List<Folder> originalSubfolders = new ArrayList<>(originalFolder.getSubfolders());
+        List<Folder> copiedSubfolders = new ArrayList<>(copiedFolder.getSubfolders());
+        
+        // Match original subfolders with copied subfolders by name
+        for (int i = 0; i < originalSubfolders.size() && i < copiedSubfolders.size(); i++) {
+            copyAllFilesInFolderHierarchy(originalSubfolders.get(i), copiedSubfolders.get(i));
+        }
+    }
+
+    /**
+     * Copy files in a single folder
+     */
+    private void copyFilesInFolder(Folder originalFolder, Folder copiedFolder) {
+        if (originalFolder.getFiles().isEmpty()) {
+            return;
+        }
+        
+        int successCount = 0;
+        for (File originalFile : originalFolder.getFiles()) {
+            try {
+                copyFileToFolderSafely(originalFile, copiedFolder);
+                successCount++;
+                log.debug("Copied file '{}' to folder '{}'", originalFile.getOriginalFileName(), copiedFolder.getName());
+            } catch (Exception e) {
+                log.error("Failed to copy file '{}' to folder '{}': {}", 
+                    originalFile.getOriginalFileName(), copiedFolder.getName(), e.getMessage());
+                // Continue with other files
+            }
+        }
+        
+        log.info("Successfully copied {} out of {} files to folder '{}' (ID: {})", 
+            successCount, originalFolder.getFiles().size(), copiedFolder.getName(), copiedFolder.getId());
     }
 
     private void updateFolderPath(Folder folder) {
@@ -551,7 +600,11 @@ public class FolderService {
             
             // Create copy using existing method
             Long newParentIdForCopy = newParent != null ? newParent.getId() : null;
-            Folder copiedFolder = copyFolderRecursively(folder, newParentIdForCopy, copyName, user);
+            Folder copiedFolder = copyFolderStructureRecursively(folder, newParentIdForCopy, copyName, user);
+            
+            // Copy files separately to avoid transaction issues
+            copyAllFilesInFolderHierarchy(folder, copiedFolder);
+            
             copiedFolders.add(convertToDTO(copiedFolder, false));
         }
 
@@ -653,5 +706,72 @@ public class FolderService {
         } else {
             return folderRepository.findByUserIdAndNameAndParentIsNull(userId, name).isPresent();
         }
+    }
+
+    /**
+     * Helper method to copy a file to a destination folder with better error handling
+     */
+    @Transactional
+    private void copyFileToFolderSafely(File originalFile, Folder destinationFolder) throws IOException {
+        // Create new file entity
+        File copiedFile = new File();
+        copiedFile.setOriginalFileName(originalFile.getOriginalFileName());
+        copiedFile.setFileName(generateUniqueFileName(originalFile.getOriginalFileName()));
+        copiedFile.setFileSize(originalFile.getFileSize());
+        copiedFile.setContentType(originalFile.getContentType());
+        copiedFile.setUser(originalFile.getUser());
+        copiedFile.setFolder(destinationFolder);
+        // createdAt and updatedAt will be set automatically by @CreationTimestamp and @UpdateTimestamp
+
+        // Save new file entity first
+        copiedFile = fileRepository.save(copiedFile);
+
+        try {
+            // Copy physical file
+            Path sourcePath = Paths.get(fileStorageConfig.getUploadDir(), String.valueOf(originalFile.getUser().getId()), originalFile.getFileName());
+            
+            // Check if source file exists
+            if (!Files.exists(sourcePath)) {
+                log.warn("Source file does not exist: {}", sourcePath);
+                // Delete the database record if physical file doesn't exist
+                fileRepository.delete(copiedFile);
+                throw new IOException("Source file not found: " + sourcePath);
+            }
+            
+            String destinationFolderPath = destinationFolder != null ? 
+                String.valueOf(destinationFolder.getId()) : String.valueOf(originalFile.getUser().getId());
+            Path destinationPath = Paths.get(fileStorageConfig.getUploadDir(), destinationFolderPath, copiedFile.getFileName());
+            
+            // Create destination directory if it doesn't exist
+            Files.createDirectories(destinationPath.getParent());
+            
+            // Copy the file
+            Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+            
+        } catch (Exception e) {
+            // If physical file copy fails, clean up the database record
+            try {
+                fileRepository.delete(copiedFile);
+            } catch (Exception deleteError) {
+                log.error("Failed to clean up file record after copy failure: {}", deleteError.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Helper method to generate unique file names for copies
+     */
+    private String generateUniqueFileName(String originalFileName) {
+        String extension = "";
+        String nameWithoutExtension = originalFileName;
+        
+        int lastDotIndex = originalFileName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            extension = originalFileName.substring(lastDotIndex);
+            nameWithoutExtension = originalFileName.substring(0, lastDotIndex);
+        }
+        
+        return nameWithoutExtension + "_copy_" + System.currentTimeMillis() + extension;
     }
 }

@@ -40,6 +40,7 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@stomp/stompjs": "^7.1.1",
+    "@tailwindcss/line-clamp": "^0.4.4",
     "@types/gsap": "^3.0.0",
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",

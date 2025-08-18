@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fileService } from '../services/fileService';
+import { useFileStore } from '../store/fileStore';
 import { FolderInfo, BreadcrumbItem } from '@/types/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -66,6 +67,9 @@ const FolderManager: React.FC<FolderManagerProps> = ({
   });
   const [navigationStack, setNavigationStack] = useState<FolderInfo[]>([]);
   const [currentViewFolderId, setCurrentViewFolderId] = useState<number | null>(currentFolderId || null);
+  
+  // Store hook for updating favorites counter
+  const { toggleFolderFavorite } = useFileStore();
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -315,7 +319,10 @@ const FolderManager: React.FC<FolderManagerProps> = ({
     try {
       await fileService.toggleFolderFavorite(folder.id);
       
-      // Refresh data
+      // Update the store to refresh the favorites counter immediately
+      toggleFolderFavorite(folder.id);
+      
+      // Refresh local data
       loadFolders();
       if (currentViewFolderId) {
         loadFolderDetails(currentViewFolderId);

@@ -37,14 +37,23 @@ const DashboardPage = () => {
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { user } = useAuthStore();
-  const { files, favorites, totalSize, setFiles } = useFileStore();
+  const { 
+    files, 
+    favorites, 
+    favoriteFolders, 
+    allFavorites, 
+    totalSize, 
+    setFiles, 
+    setFavoriteFolders,
+    updateAllFavorites
+  } = useFileStore();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated } = useAuthStore();
 
   const loadFiles = useCallback(async () => {
     try {
+      // Load files
       const filesData = await fileService.getFiles();
-      // Convert FileDTO[] to FileItem[]
       const mappedFiles = filesData.map(file => ({
         id: file.id.toString(),
         name: file.fileName,
@@ -59,10 +68,34 @@ const DashboardPage = () => {
         thumbnail: undefined
       }));
       setFiles(mappedFiles);
+
+      // Load favorite folders
+      try {
+        const favoriteFoldersData = await fileService.getFavoriteFolders();
+        const mappedFavoriteFolders = favoriteFoldersData.map(folder => ({
+          id: folder.id,
+          name: folder.name,
+          color: folder.color,
+          description: folder.description,
+          isFavorite: folder.isFavorite,
+          fileCount: folder.fileCount,
+          subfolderCount: folder.subfolderCount,
+          totalSize: folder.totalSize,
+          createdAt: folder.createdAt,
+          updatedAt: folder.updatedAt,
+          path: folder.path
+        }));
+        setFavoriteFolders(mappedFavoriteFolders);
+        updateAllFavorites();
+      } catch (folderError) {
+        console.error('Failed to load favorite folders:', folderError);
+        // Don't fail completely if favorite folders fail to load
+      }
+
     } catch (error) {
       console.error('Failed to load files:', error);
     }
-  }, [setFiles]);
+  }, [setFiles, setFavoriteFolders, updateAllFavorites]);
 
   useEffect(() => {
     if(isAuthenticated) {
@@ -127,7 +160,7 @@ const DashboardPage = () => {
     },
     {
       title: 'Favoris',
-      value: favorites.length,
+      value: `${allFavorites.length} (${favorites.length}F + ${favoriteFolders.length}D)`,
       icon: Heart,
       color: 'from-red-500 to-red-600',
       bgColor: 'bg-red-50',

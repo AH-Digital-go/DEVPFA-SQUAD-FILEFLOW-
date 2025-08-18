@@ -11,8 +11,6 @@ import {
   Moon,
   Sun,
   Filter,
-  Grid,
-  List,
 } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { NotificationsDropdown } from './NotificationsDropdown';
@@ -129,32 +127,6 @@ const Topbar = () => {
 
         {/* Right Actions */}
         <div className="flex items-center space-x-4">
-          {/* View Toggle Buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'text-gray-500 hover:bg-gray-100'
-                }`}
-              aria-label="Vue grille"
-              title="Vue grille"
-            >
-              <Grid className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'text-gray-500 hover:bg-gray-100'
-                }`}
-              aria-label="Vue liste"
-              title="Vue liste"
-            >
-              <List className="w-5 h-5" />
-            </button>
-          </div>
-
           {/* Dark Mode Toggle */}
           <motion.button
             whileHover={{ scale: 1.05 }}

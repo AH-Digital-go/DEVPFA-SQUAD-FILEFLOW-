@@ -3,14 +3,37 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Heart, Files } from 'lucide-react';
-import { useFileStore } from '../store/fileStore';
+import { Heart, Files, Folder } from 'lucide-react';
+import { useFileStore, FolderItem } from '../store/fileStore';
 import { fileService, FileDTO } from '../services/fileService';
-import FileCard from '../components/FileCard';
+import FavoriteCard from '../components/FavoriteCard';
 import AnimatedLoader from '../components/AnimatedLoader';
 
+interface FolderInfo {
+  id: number;
+  name: string;
+  color?: string;
+  description?: string;
+  isFavorite: boolean;
+  fileCount: number;
+  subfolderCount: number;
+  totalSize: number;
+  createdAt: string;
+  updatedAt: string;
+  path: string;
+}
+
 const FavouritesPage = () => {
-  const { favorites, isLoading, setLoading, setFiles } = useFileStore();
+  const { 
+    allFavorites, 
+    favorites, 
+    favoriteFolders, 
+    isLoading, 
+    setLoading, 
+    setFiles,
+    setFavoriteFolders,
+    updateAllFavorites
+  } = useFileStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,10 +43,9 @@ const FavouritesPage = () => {
   const loadFavorites = async () => {
     try {
       setLoading(true);
-      // Utilisez getFavorites() au lieu de getFiles() pour récupérer uniquement les favoris
-      const favoritesData = await fileService.getFavorites();
       
-      // Mapper FileDTO vers FileItem
+      // Load favorite files
+      const favoritesData = await fileService.getFavorites();
       const mappedFavorites = favoritesData.map((file: FileDTO) => ({
         id: file.id.toString(),
         name: file.originalFileName,
@@ -36,13 +58,80 @@ const FavouritesPage = () => {
         isFavorite: file.isFavorite,
       }));
 
+      // Load favorite folders
+      const favoriteFoldersData = await fileService.getFavoriteFolders();
+      const mappedFavoriteFolders: FolderItem[] = favoriteFoldersData.map((folder: FolderInfo) => ({
+        id: folder.id,
+        name: folder.name,
+        color: folder.color,
+        description: folder.description,
+        isFavorite: folder.isFavorite,
+        fileCount: folder.fileCount,
+        subfolderCount: folder.subfolderCount,
+        totalSize: folder.totalSize,
+        createdAt: folder.createdAt,
+        updatedAt: folder.updatedAt,
+        path: folder.path
+      }));
+
       setFiles(mappedFavorites);
+      setFavoriteFolders(mappedFavoriteFolders);
+      updateAllFavorites();
+      
     } catch (error) {
       console.error('Failed to load favorites:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleToggleFavorite = async (id: string, type: 'file' | 'folder') => {
+    try {
+      if (type === 'file') {
+        await fileService.toggleFavorite(parseInt(id));
+      } else {
+        await fileService.toggleFolderFavorite(parseInt(id));
+      }
+      // Reload favorites after toggling
+      await loadFavorites();
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  const handleDownload = async (id: string) => {
+    try {
+      const favorite = allFavorites.find(f => f.id === id);
+      if (favorite && favorite.type === 'file') {
+        await fileService.downloadFile(parseInt(id), favorite.name);
+      }
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  };
+
+  const handleShare = (id: string) => {
+    // Implement sharing logic
+    console.log('Share:', id);
+  };
+
+  const handleDelete = async (id: string, type: 'file' | 'folder') => {
+    try {
+      if (type === 'file') {
+        await fileService.deleteFile(parseInt(id));
+      } else {
+        await fileService.deleteFolder(parseInt(id));
+      }
+      // Reload favorites after deletion
+      await loadFavorites();
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    }
+  };
+
+  const totalFavorites = allFavorites.length;
+  const totalFiles = favorites.length;
+  const totalFolders = favoriteFolders.length;
 
   if (isLoading) {
     return (
@@ -62,37 +151,53 @@ const FavouritesPage = () => {
         transition={{ duration: 0.6 }}
       >
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gray-200 rounded-xl shadow-lg">
-            <Heart className="w-6 h-6 text-gray-600" />
+          <div className="p-3 bg-red-100 rounded-xl shadow-lg">
+            <Heart className="w-6 h-6 text-red-600" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Favoris</h1>
-            <p className="text-gray-600">
-              {favorites.length} fichier{favorites.length !== 1 ? 's' : ''} favori{favorites.length !== 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span className="flex items-center gap-1">
+                <Files className="w-4 h-4" />
+                {totalFiles} fichier{totalFiles !== 1 ? 's' : ''}
+              </span>
+              <span className="flex items-center gap-1">
+                <Folder className="w-4 h-4" />
+                {totalFolders} dossier{totalFolders !== 1 ? 's' : ''}
+              </span>
+              <span className="font-medium">
+                Total: {totalFavorites} élément{totalFavorites !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Favorites Grid */}
-      {favorites.length > 0 ? (
+      {/* Favorites List */}
+      {totalFavorites > 0 ? (
         <motion.div 
-          className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          className="max-w-4xl mx-auto space-y-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {favorites.map((file, index) => (
+          {allFavorites.map((favorite, index) => (
             <motion.div
-              key={file.id}
+              key={`${favorite.type}-${favorite.id}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ 
                 duration: 0.5, 
-                delay: index * 0.1 
+                delay: index * 0.05 
               }}
             >
-              <FileCard file={file} />
+              <FavoriteCard 
+                favorite={favorite}
+                onToggleFavorite={handleToggleFavorite}
+                onDownload={handleDownload}
+                onShare={handleShare}
+                onDelete={handleDelete}
+              />
             </motion.div>
           ))}
         </motion.div>
@@ -104,14 +209,14 @@ const FavouritesPage = () => {
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           <div className="bg-gray-50 backdrop-blur-sm rounded-2xl p-8 border border-gray-200">
-            <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Files className="w-10 h-10 text-gray-500" />
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Heart className="w-10 h-10 text-red-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-3">
-              Aucun fichier favori
+              Aucun favori
             </h3>
             <p className="text-gray-500 mb-6">
-              Ajoutez des fichiers à vos favoris en cliquant sur l'icône cœur dans la liste de vos fichiers
+              Ajoutez des fichiers ou des dossiers à vos favoris en cliquant sur l'icône cœur
             </p>
             <motion.button
               className="px-6 py-3 bg-blue-600 hover:bg-blue-800 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300"
