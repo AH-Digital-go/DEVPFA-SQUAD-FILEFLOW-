@@ -48,6 +48,7 @@ export interface UserUpdateRequest {
   lastName?: string;
   email?: string;
   newPassword?: string;
+  confirmPassword?: string;
 }
 
 // for file:

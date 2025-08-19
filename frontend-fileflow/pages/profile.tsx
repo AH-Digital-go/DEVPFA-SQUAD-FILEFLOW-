@@ -11,6 +11,8 @@ import {
   Edit3,
   Shield,
   Key,
+  EyeOff,
+  Eye,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { toast } from 'react-toastify';
@@ -29,7 +31,14 @@ const ProfilePage = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
   const profileRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
@@ -80,12 +89,27 @@ const ProfilePage = () => {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/;
+
+    if (!passwordData.newPassword) {
+      toast.error("Le mot de passe est requis");
+      return;
+    } else if (passwordData.newPassword.length < 8) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères");
+      return;
+    } else if (!passwordRegex.test(passwordData.newPassword)) {
+      toast.error(
+        "Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial"
+      );
       return;
     }
 
+
     try {
+      await userService.updateUserProfile({
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+      });
       // Here you would typically make an API call to change the password
       toast.success('Mot de passe changé avec succès');
       setPasswordData({
@@ -286,45 +310,79 @@ const ProfilePage = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Mot de passe actuel
                   </label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                    placeholder="••••••••"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? "text" : "password"}
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPasswords(prev => ({ ...prev, current: !prev.current }))
+                      }
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPasswords.current ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
-
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Nouveau mot de passe
                     </label>
-                    <input
-                      type="password"
-                      name="newPassword"
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                      placeholder="••••••••"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPasswords.new ? "text" : "password"}
+                        name="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPasswords(prev => ({ ...prev, new: !prev.new }))
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Confirmer le nouveau mot de passe
                     </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={passwordData.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                      placeholder="••••••••"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPasswords.confirm ? "text" : "password"}
+                        name="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
+
 
                 <div className="flex justify-end">
                   <motion.button
@@ -339,12 +397,6 @@ const ProfilePage = () => {
               </div>
             )}
           </motion.div>
-
-          {!showPasswordForm && (
-            <p className="text-slate-500">
-              Dernière modification du mot de passe: Il y a 3 mois
-            </p>
-          )}
         </div>
       </motion.div>
     </motion.div>
