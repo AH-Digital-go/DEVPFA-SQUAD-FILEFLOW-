@@ -96,7 +96,7 @@ and also in the “Access to data” section, add gmail.send and gmail.compose
 
 ```bash
 mvn clean install
-mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Djava.awt.headless=false"
 ```
 
 ➡ Runs on: `http://localhost:8080`  
