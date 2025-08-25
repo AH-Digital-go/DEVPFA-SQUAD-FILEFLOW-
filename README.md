@@ -5,15 +5,28 @@ It allows users to securely **store, organize, and share files**, with advanced 
 The project is built with **Spring Boot (backend)** and **Next.js (frontend)**, following a modern and scalable architecture.  
 
 ---
-
+## 📑 Table of Contents
+- [Quick Start](#-quick-start-docker)
+- [Features](#-features)
+- [Tech Stack](#️-tech-stack)
+- [Prerequisites](#️-prerequisites)
+- [Installation & Configuration](#-installation--configuration)
+- [FileFlow API Documentation](#fileflow-api-documentation)
+## 🚀 Quick Start (Docker)
+Before doing this, you should first complete [Gmail API Setup](#3️⃣-gmail-api-setup)
+```bash
+git clone https://github.com/your-org/File-Flow-Project.git
+cd File-Flow-Project
+docker-compose up --build
+```
+- **Backend**: [http://localhost:8080](http://localhost:8080)  
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
 ## ✨ Features  
-
 - 🔐 **Secure Authentication & Authorization** (JWT & Refresh Tokens)  
 - 📁 **File & Folder Management** (upload, download, organize)  
-- 🤝 **File Sharing** (controlled access & permissions)  
-- 📧 **Email Notifications** (via Gmail API)  
+- 🤝 **File Sharing** (controlled access & permissions)
+- 📧 **Email Notifications** (via Gmail API) 
 - 📊 **Dashboard** with file statistics    
-
 ---
 
 ## 🛠️ Tech Stack  
@@ -90,9 +103,9 @@ and also in the “Access to data” section, add gmail.send and gmail.compose
 
 ---
 
-## ▶️ Run the Project  
-
-### Backend  
+### ▶️ Run the Project  
+#### Using Local Machine
+**Backend** 
 
 ```bash
 mvn clean install
@@ -101,7 +114,7 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Djava.awt.headless=false"
 
 ➡ Runs on: `http://localhost:8080`  
 
-### Frontend  
+**Frontend** 
 
 ```bash
 npm install
@@ -109,7 +122,10 @@ npm run dev
 ```
 
 ➡ Runs on: `http://localhost:3000`  
-
+#### Using Docker:
+```terminal
+docker-compose up --build
+```
 --- 
 # FileFlow API Documentation
 
@@ -118,7 +134,6 @@ Base URL: `/api`
 All endpoints require authentication unless specified.
 
 ---
-
 ## **1. User APIs**
 
 ### Get Current User
