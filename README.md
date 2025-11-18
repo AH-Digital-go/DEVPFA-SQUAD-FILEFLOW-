@@ -19,6 +19,24 @@ git clone https://github.com/your-org/File-Flow-Project.git
 cd File-Flow-Project
 docker-compose up --build
 ```
+## ⚠️ Gmail API – One-Time Authorization Required
+
+When you run the backend for the **first time inside Docker**, the Gmail API needs a one-time OAuth authorization.
+
+### Steps
+1. Start the backend container.
+2. Open the container logs and look for a message containing a **Google authorization URL**.
+3. Copy that URL and open it in your browser.
+4. Complete the authorization process.  
+   - This step is required **only once**.
+
+### If email sending fails later
+- Restart the backend container.
+- Check the logs again.  
+  If the Google authorization link appears, repeat the authorization.
+
+This process ensures that Gmail can generate and store the OAuth token needed to send emails.
+
 - **Backend**: [http://localhost:8080](http://localhost:8080)  
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 ## ✨ Features  
